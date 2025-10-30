@@ -1,0 +1,24 @@
+name: automata-visualiser
+version: 0.1.0
+
+dependencies:
+- base >= 4.7 && < 5
+- mtl
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+- -Wno-orphans
+- -Wno-missing-export-lists
+
+language: Haskell2010
+
+library:
+  source-dirs:
+    - src
