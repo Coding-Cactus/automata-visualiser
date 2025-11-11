@@ -4,6 +4,7 @@ version: 0.1.0
 dependencies:
 - base >= 4.7 && < 5
 - mtl
+- text
 
 ghc-options:
 - -Wall
@@ -17,7 +18,7 @@ ghc-options:
 - -Wno-orphans
 - -Wno-missing-export-lists
 
-language: Haskell2010
+language: GHC2021
 
 library:
   source-dirs:
