@@ -1,7 +1,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Svg (SVG(Svg, Circle, Text), render) where
+module Automata.Render.Svg (svg) where
+
+import Automata.Types
 
 import Data.Foldable (foldl')
 import qualified Data.Text as T
@@ -56,3 +58,24 @@ mapPair :: (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
 mapTriple :: (a -> b) -> (a, a, a) -> (b, b, b)
 mapTriple f (x, y, z) = (f x, f y, f z)
+
+
+svgStateGap :: Int
+svgStateRadius :: Int
+svgAcceptStateRadius :: Int
+svgPositionScale :: Int
+svgStateGap = 30
+svgStateRadius = 25
+svgAcceptStateRadius = svgStateRadius + 3
+svgPositionScale = svgStateGap + svgStateRadius*2
+
+svg :: AutomatonLayout -> AutomatonRender
+svg (AL sts _) = TextData $ render $ Svg $ concatMap drawStates sts
+  where
+    drawStates (PS name xPos yPos _ isF) = [Circle scaleX scaleY svgStateRadius,
+                                            Text scaleX scaleY name]
+                                            <> outerCircle
+      where
+        scaleX = xPos * svgPositionScale
+        scaleY = yPos * svgPositionScale
+        outerCircle = if isF then [Circle scaleX scaleY svgAcceptStateRadius] else mempty
