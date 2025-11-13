@@ -1,9 +1,9 @@
-module Automata.Layout (layout) where
+module Automata.Layout.Line (layout) where
 
 import Automata.Types
 
 
-layout :: Automaton s t -> AutomatonLayout
+layout :: Automaton s t -> AutomatonLayout s t
 layout a = AL {
     positionedStates = map positionState $ states a,
     positionedTransitions = []
@@ -11,7 +11,7 @@ layout a = AL {
   where
     positionState (S sid name) = PS {
       sLabel = drawLabel name,
-      x = sid,
+      x = fromIntegral sid,
       y = 0,
       isInitial = sid == initialS a,
       isFinal = sid `elem` finalS a

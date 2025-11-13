@@ -87,22 +87,23 @@ data AutomatonRender = TextData Text | BinaryData Text
 
 
 data PositionedState = PS {
+  psid :: Int,
   sLabel :: Text,
-  x :: Int,
-  y :: Int,
+  x :: Double,
+  y :: Double,
   isInitial :: Bool,
   isFinal :: Bool
 }
 
-data PositionedTranistions = PT {
+data PositionedTranistion = PT {
   tLabel :: Text,
-  startX :: Int,
-  startY :: Int,
-  endX :: Int,
-  endY :: Int
+  startX :: Double,
+  startY :: Double,
+  endX :: Double,
+  endY :: Double
 }
 
-data AutomatonLayout = AL {
+data AutomatonLayout s t = AL {
   positionedStates :: [PositionedState],
-  positionedTransitions :: [PositionedTranistions]
+  positionedTransitions :: [Transition s t]
 }

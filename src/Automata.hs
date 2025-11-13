@@ -36,12 +36,12 @@ final :: State s -> AutomatonBuilder s t
 final (S sid _) = S.modify $ \a -> a { finalS = sid : finalS a }
 
 a1 = do
-  a <- state 'a'
-  a' <- state 'b'
-  b <- state 'c'
-  --_ <- state "c"
-  --_ <- state "abc"
-  --_ <- state "hi"
+  a <- state "a"
+  b <- state "a"
+  c <- state "c"
+  d <- state "c"
+  e <- state "abc"
+  f <- state "hi"
 
   initial a
   final a
@@ -49,4 +49,7 @@ a1 = do
 
   a >-|'a'|-> b
   --a >-|(0::Int) ~~ ('a', 'b')|-> b
-  a >-|'b'|-> b
+  b >-|'b'|-> c
+  c >-|'c'|-> d
+  d >-|'d'|-> f
+  e >-|'e'|-> b
