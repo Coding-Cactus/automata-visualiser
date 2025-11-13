@@ -5,8 +5,15 @@ module Automata.Render.Svg (svg) where
 
 import Automata.Types
 
-import Data.Foldable (foldl')
+import Text.Blaze.Svg11 ((!))
+import qualified Text.Blaze.Svg11 as S
+import qualified Text.Blaze.Svg11.Attributes as A
+import Text.Blaze.Svg.Renderer.Text (renderSvg)
+import Text.Blaze (toValue, text)
+
+import Data.Foldable (foldl', forM_)
 import qualified Data.Text as T
+import Data.Text.Lazy (toStrict)
 
 data BoundingBox a where
   BB :: (Show a, Num a, Ord a) => {
@@ -23,36 +30,33 @@ data SVG a where
   Line   :: (Show a, Num a, Ord a) => a -> a -> a -> a -> SVG a -- Line startX startY endX endY
 
 render :: SVG a -> T.Text
-render (Svg elems) = let (BB minX maxX minY maxY) = boundingBox $ Svg elems in
-  "<svg "
-  <> "viewBox=\"" <> T.intercalate " " (map (T.pack . show) [minX, minY, maxX - minX, maxY - minY])
-  <> "\" xmlns=\"http://www.w3.org/2000/svg\">"
-  <> arrowMarkerDef
-  <> T.concat (map render elems)
-  <> "</svg>"
-render (Text x y txt) = let (x', y') = mapPair (T.pack . show) (x, y) in
-  "<text "
-  <> "text-anchor=\"middle\" dominant-baseline=\"middle\" "
-  <> "x=\"" <> x' <> "\" y=\"" <> y'
-  <> "\">" <> txt <> "</text>"
-render (Circle x y r) = let (x', y', r') = mapTriple (T.pack . show) (x, y, r) in
-  "<circle "
-  <> "cx=\"" <> x' <> "\" cy=\"" <> y' <> "\" r=\"" <> r'
-  <> "\" stroke=\"black\" fill=\"none\" />"
-render (Line x1 y1 x2 y2) = let (x1', y1', x2', y2') = mapQuadruple (T.pack . show) (x1, y1, x2, y2) in
-  "<line "
-  <> "x1=\"" <> x1' <> "\" x2=\"" <> x2' <> "\" y1=\"" <> y1' <> "\" y2=\"" <> y2'
-  <> "\" stroke=\"black\" marker-end=\"url(#arrow)\" />"
+render = toStrict . renderSvg . toSvg
 
-arrowMarkerDef :: T.Text
+toSvg :: SVG a -> S.Svg
+toSvg (Svg elems) = let (BB minX maxX minY maxY) = boundingBox $ Svg elems in
+  S.docTypeSvg ! A.version "1.1" ! A.viewbox (toValue (unwords $ map show [minX, minY, maxX - minX, maxY - minY])) $ do
+    arrowMarkerDef
+    forM_ elems toSvg
+toSvg (Text x y txt) = let (x', y') = mapPair (toValue . show) (x, y) in
+  S.text_ ! A.textAnchor "middle" ! A.dominantBaseline "middle"
+    ! A.x x' ! A.y y' $
+      text txt
+toSvg (Circle x y r) = let (x', y', r') = mapTriple (toValue . show) (x, y, r) in
+  S.circle ! A.stroke "black" ! A.fill "none"
+    ! A.cx x' ! A.cy y' ! A.r r'
+toSvg (Line x1 y1 x2 y2) = let (x1', y1', x2', y2') = mapQuadruple (toValue . show) (x1, y1, x2, y2) in
+  S.line ! A.stroke "black" ! A.markerEnd "url(#arrow)"
+    ! A.x1 x1' ! A.x2 x2' ! A.y1 y1' ! A.y2 y2'
+
+arrowMarkerDef :: S.Svg
 arrowMarkerDef = -- https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/marker
-  "<defs>"
-  <> "<marker id=\"arrow\" viewBox=\"0 0 10 10\" "
-  <> "refX=\"10\" refY=\"5\" markerWidth=\"6\" markerHeight=\"6\" "
-  <> "orient=\"auto-start-reverse\">"
-  <> "<path d=\"M 0 0 L 10 5 L 0 10 z\" />"
-  <> "</marker>"
-  <> "</defs>"
+  S.defs $
+    S.marker ! A.id_ "arrow"
+      ! A.viewbox "0 0 10 10" ! A.refx "10" ! A.refy "5"
+      ! A.markerwidth "6" ! A.markerheight "6"
+      ! A.orient "auto-start-reverse" $
+        S.path ! A.d "M 0 0 L 10 5 L 0 10 z"
+
 
 boundingBox :: SVG a -> BoundingBox a
 boundingBox (Svg []) = BB 0 0 0 0

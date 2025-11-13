@@ -10,6 +10,7 @@ layout a = AL {
   }
   where
     positionState (S sid name) = PS {
+      psid = sid,
       sLabel = drawLabel name,
       x = fromIntegral sid,
       y = 0,
