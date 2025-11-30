@@ -1,9 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Automata.Render (render, saveToFile, svg) where
+module Automata.Render (render, saveToFile, svg, svgAnimation) where
 
 import Automata.Types
-import Automata.Layout.Circle
+import Automata.Layout.Force
 import Automata.Render.Svg
 
 import qualified Control.Monad.State as S
@@ -14,5 +14,5 @@ saveToFile fname = \case
   TextData txt -> T.writeFile fname txt
   BinaryData _ -> undefined
 
-render :: String -> (AutomatonLayout s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
+render :: String -> (AutomatonLayoutAnimation s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
 render file fn a = saveToFile file $ fn $ layout $ S.execState a (Automaton [] [] (-1) [])

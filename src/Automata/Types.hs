@@ -52,8 +52,6 @@ data Transition s t where
 instance Show (Transition s t) where
   show (T s1 s2 t) = show (s1, s2, toTransition t)
 
-
-
 class TransitionLabel a where
   toTransition :: a -> Text
 
@@ -75,7 +73,6 @@ instance TransitionLabel Float where
 instance TransitionLabel Double where
   toTransition = pack . show
 
-
 data StackTransition a b where
   StackT :: (Label a, Label b) => a -> (b, b) -> StackTransition a b
 
@@ -93,7 +90,7 @@ data PositionedState = PS {
   y :: Double,
   isInitial :: Bool,
   isFinal :: Bool
-}
+} deriving (Eq, Show)
 
 data PositionedTranistion = PT {
   tLabel :: Text,
@@ -101,9 +98,14 @@ data PositionedTranistion = PT {
   startY :: Double,
   endX :: Double,
   endY :: Double
-}
+} deriving (Eq, Show)
 
 data AutomatonLayout s t = AL {
   positionedStates :: [PositionedState],
   positionedTransitions :: [Transition s t]
-}
+} deriving (Show)
+
+data AutomatonLayoutAnimation s t = ALA {
+  frames :: [[PositionedState]],
+  transitionsStatic :: [Transition s t]
+} deriving (Show)

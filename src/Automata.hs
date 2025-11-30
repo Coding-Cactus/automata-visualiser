@@ -8,6 +8,9 @@ import Automata.Render
 import qualified Control.Monad.State as S
 
 
+
+import Automata.Layout.Force (layout)
+
 infixl 5 >-|
 (>-|) :: State s -> t -> (State s, t)
 s >-| condition = (s, condition)
@@ -37,9 +40,9 @@ final (S sid _) = S.modify $ \a -> a { finalS = sid : finalS a }
 
 a1 = do
   a <- state "a"
-  b <- state "a"
+  b <- state "b"
   c <- state "c"
-  d <- state "c"
+  d <- state "d"
   e <- state "abc"
   f <- state "hi"
 
@@ -47,9 +50,14 @@ a1 = do
   final a
   final b
 
-  a >-|'a'|-> b
   --a >-|(0::Int) ~~ ('a', 'b')|-> b
-  b >-|'b'|-> c
-  c >-|'c'|-> d
-  d >-|'d'|-> f
-  e >-|'e'|-> b
+  a >-|'a'|-> b
+  a >-|'b'|-> c
+  a >-|'c'|-> f
+  a >-|'d'|-> e
+  b >-|'e'|-> c
+  b >-|'f'|-> e
+  c >-|'h'|-> d
+  e >-|'i'|-> f
+
+aF = layout $ S.execState a1 (Automaton [] [] (-1) [])
