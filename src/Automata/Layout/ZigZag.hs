@@ -6,7 +6,7 @@ import Automata.Types
 layout :: Automaton s t -> AutomatonLayout s t
 layout a = AL {
     positionedStates = map positionState $ states a,
-    positionedTransitions = []
+    positionedTransitions = transitions a
   }
   where
     positionState (S sid name) = PS {

@@ -92,7 +92,7 @@ data PositionedState = PS {
   isFinal :: Bool
 } deriving (Eq, Show)
 
-data PositionedTranistion = PT {
+data PositionedTransition = PT {
   tLabel :: Text,
   startX :: Double,
   startY :: Double,

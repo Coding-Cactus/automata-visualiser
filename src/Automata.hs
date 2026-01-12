@@ -43,8 +43,8 @@ a1 = do
   b <- state "b"
   c <- state "c"
   d <- state "d"
-  e <- state "abc"
-  f <- state "hi"
+  e <- state "e"
+  f <- state "f"
 
   initial a
   final a
@@ -59,5 +59,6 @@ a1 = do
   b >-|'f'|-> e
   c >-|'h'|-> d
   e >-|'i'|-> f
+  c >-|'k'|-> f
 
 aF = layout $ S.execState a1 (Automaton [] [] (-1) [])
