@@ -99,40 +99,13 @@ svgPositionScale = svgStateGap + svgStateRadius*2
 svgTransLabelGap = 10
 
 svgAnimation :: AutomatonLayoutAnimation s t -> AutomatonRender
-svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map (\sts -> Svg $ concatMap drawState sts <> concatMap (drawTransition sts) ts) frames
-  where
-    drawState (PS _ name xPos yPos _ isF) = [Circle scaleX scaleY svgStateRadius,
-                                            Text scaleX scaleY name]
-                                            <> outerCircle
-      where
-        scaleX = svgPositionScale * xPos
-        scaleY = svgPositionScale * yPos
-        outerCircle = if isF then [Circle scaleX scaleY svgAcceptStateRadius] else mempty
-    drawTransition sts (T (S aId _) (S bId _) label) = [Line x1' y1' x2' y2',
-                                                    Text xMid yMid (toTransition label)]
-      where
-        x1 = svgPositionScale * x aState -- centre of the states
-        y1 = svgPositionScale * y aState
-        x2 = svgPositionScale * x bState
-        y2 = svgPositionScale * y bState
-        x1' = x1 + (aRadius / hypLength) * adjLength -- edge of the states
-        y1' = y1 + (aRadius / hypLength) * opLength
-        x2' = x2 - (bRadius / hypLength) * adjLength
-        y2' = y2 - (bRadius / hypLength) * opLength
-        xMid = (x1 + x2) / 2 + midFactor * gradient
-        yMid = (y1 + y2) / 2 - midFactor
-        midFactor = svgTransLabelGap / (-sqrt (1 + gradient**2))
-        aState = head $ filter ((==) aId . psid) sts
-        bState = head $ filter ((==) bId . psid) sts
-        aRadius = if isFinal aState then svgAcceptStateRadius else svgStateRadius
-        bRadius = if isFinal bState then svgAcceptStateRadius else svgStateRadius
-        opLength = y2 - y1
-        adjLength = x2 - x1
-        hypLength = sqrt ((x1 - x2)**2 + (y1 - y2)**2)
-        gradient = (y2 - y1) / (x2 - x1)
+svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map (`buildSvg` ts) frames
 
 svg :: AutomatonLayout s t -> AutomatonRender
-svg (AL sts ts) = TextData $ render $ Svg $ concatMap drawState sts <> concatMap drawTransition ts
+svg (AL sts ts) = TextData $ render $ buildSvg sts ts
+
+buildSvg :: [PositionedState] -> [Transition s t] -> SVG Double
+buildSvg sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
   where
     drawState (PS _ name xPos yPos _ isF) = [Circle scaleX scaleY svgStateRadius,
                                             Text scaleX scaleY name]
