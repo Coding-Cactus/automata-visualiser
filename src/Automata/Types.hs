@@ -5,12 +5,14 @@ module Automata.Types  where
 
 import Data.Text (Text, unpack, pack, singleton)
 import qualified Control.Monad.State as S
+import Data.Bool
 
 data Automaton s t = Automaton {
   states :: [State s],
   transitions :: [Transition s t],
   initialS :: Int,
-  finalS :: [Int]
+  finalS :: [Int],
+  positions :: [PositionConstraint s]
 } deriving Show
 
 
@@ -22,6 +24,9 @@ data State s where
 
 instance Show (State s) where
   show (S _ name) = unpack $ drawLabel name
+
+instance Eq (State s) where
+  (S id1 _) == (S id2 _) = id1 == id2
 
 
 class Label a where
@@ -79,6 +84,18 @@ data StackTransition a b where
 instance TransitionLabel (StackTransition a b) where
   toTransition (StackT token (stack1, stack2)) = drawLabel token <> ", " <> drawLabel stack1 <> "->" <> drawLabel stack2
 
+
+data PositionConstraint s = Ab (State s) (State s)
+                          | Le (State s) (State s)
+                          deriving (Show, Eq)
+
+constrained :: State s -> PositionConstraint s -> Bool
+constrained s (Ab a b) = s == a || s == b
+constrained s (Le a b) = s == a || s == b
+
+without :: PositionConstraint s -> State s -> State s
+(Ab a b) `without` s = bool a b (s == a)
+(Le a b) `without` s = bool a b (s == a)
 
 data AutomatonRender = TextData Text | BinaryData Text
 

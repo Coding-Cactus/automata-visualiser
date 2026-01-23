@@ -4,12 +4,11 @@ module Automata where
 
 import Automata.Types
 import Automata.Render
+import Automata.Layout.Energy
 
 import qualified Control.Monad.State as S
 
 
-
-import Automata.Layout.Force (layout)
 
 infixl 5 >-|
 (>-|) :: State s -> t -> (State s, t)
@@ -38,6 +37,23 @@ initial (S sid _) = S.modify $ \a -> a { initialS = sid }
 final :: State s -> AutomatonBuilder s t
 final (S sid _) = S.modify $ \a -> a { finalS = sid : finalS a }
 
+-- TODO: ensure a node only relates to one other node.
+--       i.e. can have a `leftOf` b, b `above` b. But cannot have 'b' as different.
+--       Also cannot have contradicting leftOf, rightOf. or a L b, b L a
+--       Checking for cycles in realtion graph might be sufficient
+leftOf :: State s -> State s -> AutomatonBuilder s t
+x `leftOf` y = S.modify $ \a -> a { positions = Le x y : positions a }
+
+above :: State s -> State s -> AutomatonBuilder s t
+x `above` y = S.modify $ \a -> a { positions = Ab x y : positions a }
+
+rightOf :: State s -> State s -> AutomatonBuilder s t
+x `rightOf` y = S.modify $ \a -> a { positions = Le y x : positions a }
+
+below :: State s -> State s -> AutomatonBuilder s t
+x `below` y = S.modify $ \a -> a { positions = Ab y x : positions a }
+
+
 a1 = do
   a <- state "a"
   b <- state "b"
@@ -45,20 +61,27 @@ a1 = do
   d <- state "d"
   e <- state "e"
   f <- state "f"
+  -- g <- state "g"
+  -- h <- state "h"
 
   initial a
-  final a
-  final b
+  final f
 
-  --a >-|(0::Int) ~~ ('a', 'b')|-> b
-  a >-|'a'|-> b
-  a >-|'b'|-> c
-  a >-|'c'|-> f
-  a >-|'d'|-> e
-  b >-|'e'|-> c
-  b >-|'f'|-> e
-  c >-|'h'|-> d
-  e >-|'i'|-> f
-  c >-|'k'|-> f
+  -- a >-|'a'|-> h
+  a >-|'b'|-> e
+  b >-|'b'|-> a
+  c >-|'a'|-> b
+  c >-|'b'|-> f
+  -- d >-|'b'|-> h
+  e >-|'a'|-> c
+  f >-|'a'|-> d
+  -- f >-|'b'|-> h
+  -- g >-|'a'|-> a
+  -- h >-|'b'|-> g
 
-aF = layout $ S.execState a1 (Automaton [] [] (-1) [])
+  a `leftOf` b
+  b `above` d
+  c `leftOf` a
+  c `above` a
+  c `above` f
+  e `below` a

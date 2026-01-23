@@ -14,6 +14,7 @@ import Text.Blaze (toValue, text)
 import Data.Foldable (foldl', forM_)
 import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
+import Data.Bool
 
 data BoundingBox a where
   BB :: (Show a, Num a, Ord a) => {
@@ -92,11 +93,13 @@ svgStateRadius :: Double
 svgAcceptStateRadius :: Double
 svgPositionScale :: Double
 svgTransLabelGap :: Double
+svgStartArrowLen :: Double
 svgStateGap = 30
 svgStateRadius = 25
 svgAcceptStateRadius = svgStateRadius + 3
 svgPositionScale = svgStateGap + svgStateRadius*2
 svgTransLabelGap = 10
+svgStartArrowLen = 25
 
 svgAnimation :: AutomatonLayoutAnimation s t -> AutomatonRender
 svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map (`buildSvg` ts) frames
@@ -107,13 +110,16 @@ svg (AL sts ts) = TextData $ render $ buildSvg sts ts
 buildSvg :: [PositionedState] -> [Transition s t] -> SVG Double
 buildSvg sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
   where
-    drawState (PS _ name xPos yPos _ isF) = [Circle scaleX scaleY svgStateRadius,
+    drawState (PS _ name xPos yPos isS isF) = [Circle scaleX scaleY svgStateRadius,
                                             Text scaleX scaleY name]
                                             <> outerCircle
+                                            <> startArrow
       where
         scaleX = svgPositionScale * xPos
         scaleY = svgPositionScale * yPos
+        outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isF
         outerCircle = if isF then [Circle scaleX scaleY svgAcceptStateRadius] else mempty
+        startArrow = if isS then [Line (scaleX - outerCircleRadius - svgStartArrowLen) scaleY (scaleX - outerCircleRadius) scaleY] else mempty
     drawTransition (T (S aId _) (S bId _) label) = [Line x1' y1' x2' y2',
                                                     Text xMid yMid (toTransition label)]
       where
@@ -125,7 +131,7 @@ buildSvg sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
         y1' = y1 + (aRadius / hypLength) * opLength
         x2' = x2 - (bRadius / hypLength) * adjLength
         y2' = y2 - (bRadius / hypLength) * opLength
-        xMid = (x1 + x2) / 2 + midFactor * gradient
+        xMid = (x1 + x2) / 2 + if x2 - x1 == 0 then 0 else midFactor * gradient
         yMid = (y1 + y2) / 2 - midFactor
         midFactor = svgTransLabelGap / (-sqrt (1 + gradient**2))
         aState = head $ filter ((==) aId . psid) sts
