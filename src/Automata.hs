@@ -53,7 +53,7 @@ x `rightOf` y = S.modify $ \a -> a { positions = Le y x : positions a }
 below :: State s -> State s -> AutomatonBuilder s t
 x `below` y = S.modify $ \a -> a { positions = Ab y x : positions a }
 
-
+a1 :: AutomatonBuilder String Int
 a1 = do
   a <- state "a"
   b <- state "b"
@@ -61,27 +61,36 @@ a1 = do
   d <- state "d"
   e <- state "e"
   f <- state "f"
-  -- g <- state "g"
-  -- h <- state "h"
+  g <- state "g"
+  h <- state "h"
+  i <- state "i"
+  j <- state "j"
+  k <- state "k"
+  l <- state "l"
 
   initial a
-  final f
 
-  -- a >-|'a'|-> h
-  a >-|'b'|-> e
-  b >-|'b'|-> a
-  c >-|'a'|-> b
-  c >-|'b'|-> f
-  -- d >-|'b'|-> h
-  e >-|'a'|-> c
-  f >-|'a'|-> d
-  -- f >-|'b'|-> h
-  -- g >-|'a'|-> a
-  -- h >-|'b'|-> g
+  a >-|0|-> b
+  a >-|0|-> c
+  b `leftOf` c
+  a `above` b
 
-  a `leftOf` b
-  b `above` d
-  c `leftOf` a
-  c `above` a
-  c `above` f
-  e `below` a
+  d >-|0|-> e
+  d >-|0|-> f
+  e `above` f
+  d `rightOf` e
+
+  g >-|0|-> h
+  g >-|0|-> i
+  h `rightOf` i
+  g `below` h
+
+  j >-|0|-> k
+  j >-|0|-> l
+  k `below` l
+  j `leftOf` k
+
+  c >-|1|-> e
+  f >-|1|-> h
+  i >-|1|-> k
+  l >-|1|-> b

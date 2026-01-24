@@ -1,11 +1,12 @@
 module Automata.Layout.Line (layout) where
 
 import Automata.Types
+import Data.List (singleton)
 
 
 layout :: Automaton s t -> AutomatonLayout s t
 layout a = AL {
-    positionedStates = map positionState $ states a,
+    positionedStates = map (singleton . positionState) $ states a,
     positionedTransitions = []
   }
   where

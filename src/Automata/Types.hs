@@ -118,11 +118,11 @@ data PositionedTransition = PT {
 } deriving (Eq, Show)
 
 data AutomatonLayout s t = AL {
-  positionedStates :: [PositionedState],
+  positionedStates :: [[PositionedState]],
   positionedTransitions :: [Transition s t]
 } deriving (Show)
 
 data AutomatonLayoutAnimation s t = ALA {
-  frames :: [[PositionedState]],
+  frames :: [[[PositionedState]]],
   transitionsStatic :: [Transition s t]
 } deriving (Show)

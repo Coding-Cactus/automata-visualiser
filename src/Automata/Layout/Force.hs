@@ -1,8 +1,9 @@
-module Automata.Layout.Force (layout, layout', layoutPositioned) where
+module Automata.Layout.Force (layout, layout', layoutPositioned, defaultLength) where
 
 import Automata.Types
-import qualified Automata.Layout.ZigZag as ZigZag
+import qualified Automata.Layout.Constrained as Constrained
 
+import Data.Bool
 import Data.Foldable (foldl')
 
 stepSize :: Double
@@ -16,25 +17,30 @@ electricalConstant = 2.25
 
 layout' :: Automaton s t -> AutomatonLayoutAnimation s t
 layout' a = ALA {
-    frames = map positionedStates $ take 1000 $ iterate simulate (ZigZag.layout a),
+    frames = map positionedStates $ take 1000 $ iterate simulate (Constrained.layout defaultLength a),
     transitionsStatic = transitions a
   }
 
 layout :: Automaton s t -> AutomatonLayout s t
-layout = layoutPositioned . ZigZag.layout
+layout = layoutPositioned . Constrained.layout defaultLength
 
 layoutPositioned :: AutomatonLayout s t -> AutomatonLayout s t
-layoutPositioned = until stable simulate
-  where stable = all (\(dx, dy) -> abs dx < 0.001 && abs dy < 0.001) . movement
+layoutPositioned = untilStableOrCount 1000 simulate
+  where
+    untilStableOrCount 0 _ state = state
+    untilStableOrCount n f state = bool (untilStableOrCount (n-1) f (f state)) state (all (\(dx, dy) -> abs dx < 0.001 && abs dy < 0.001) $ movement state)
 
 simulate :: AutomatonLayout s t -> AutomatonLayout s t
-simulate a@(AL states trns) = AL (zipWith (\u (dx, dy) -> u { x = dx * stepSize + x u, y = dy * stepSize + y u }) states (movement a)) trns
+simulate a@(AL groups trns) = AL (zipWith (\g (dx, dy) -> map (\u -> u { x = dx * stepSize + x u, y = dy * stepSize + y u }) g) groups (movement a)) trns
 
 movement :: AutomatonLayout s t -> [(Double, Double)]
-movement (AL states trns) = map (\u -> (motionX u, motionY u)) states
+movement (AL groups trns) = map (\u -> (groupMotionX u, groupMotionY u)) groups
   where
-    motionX u = foldl' (\acc v -> acc + electicX u v + transitionTensionX u v) 0 $ filter (u /=) states
-    motionY u = foldl' (\acc v -> acc + electicY u v + transitionTensionY u v) 0 $ filter (u /=) states
+    groupMotionX = sum . map motionX
+    groupMotionY = sum . map motionY
+
+    motionX u = foldl' (\acc v -> acc + electicX u v + transitionTensionX u v) 0 $ concatMap (filter (u /=)) groups
+    motionY u = foldl' (\acc v -> acc + electicY u v + transitionTensionY u v) 0 $ concatMap (filter (u /=)) groups
 
     transitionTensionX u v = if hasTransition u v then tensionX u v else 0
     transitionTensionY u v = if hasTransition u v then tensionY u v else 0
@@ -49,3 +55,8 @@ movement (AL states trns) = map (\u -> (motionX u, motionY u)) states
     xDist u v = x v - x u
     yDist u v = y v - y u
     pythag x y = sqrt (x ** 2 + y ** 2)
+
+-- edge length estimate between two connected nodes
+defaultLength :: Double
+defaultLength = iterate estimate 1 !! 10
+  where estimate d = electricalConstant / (springConstant * d**2) + springNatLen

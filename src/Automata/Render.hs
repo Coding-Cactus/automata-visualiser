@@ -3,7 +3,7 @@
 module Automata.Render (render, render', saveToFile, svg, svgAnimation) where
 
 import Automata.Types
-import Automata.Layout.Energy
+import Automata.Layout.Combined
 import Automata.Render.Svg
 
 import qualified Control.Monad.State as S

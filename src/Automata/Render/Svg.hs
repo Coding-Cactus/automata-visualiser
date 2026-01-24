@@ -102,10 +102,10 @@ svgTransLabelGap = 10
 svgStartArrowLen = 25
 
 svgAnimation :: AutomatonLayoutAnimation s t -> AutomatonRender
-svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map (`buildSvg` ts) frames
+svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map ((`buildSvg` ts) . concat) frames
 
 svg :: AutomatonLayout s t -> AutomatonRender
-svg (AL sts ts) = TextData $ render $ buildSvg sts ts
+svg (AL groups ts) = TextData $ render $ buildSvg (concat groups) ts
 
 buildSvg :: [PositionedState] -> [Transition s t] -> SVG Double
 buildSvg sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
@@ -131,7 +131,7 @@ buildSvg sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
         y1' = y1 + (aRadius / hypLength) * opLength
         x2' = x2 - (bRadius / hypLength) * adjLength
         y2' = y2 - (bRadius / hypLength) * opLength
-        xMid = (x1 + x2) / 2 + if x2 - x1 == 0 then 0 else midFactor * gradient
+        xMid = (x1 + x2) / 2 + if x2 - x1 == 0 then svgTransLabelGap else midFactor * gradient
         yMid = (y1 + y2) / 2 - midFactor
         midFactor = svgTransLabelGap / (-sqrt (1 + gradient**2))
         aState = head $ filter ((==) aId . psid) sts

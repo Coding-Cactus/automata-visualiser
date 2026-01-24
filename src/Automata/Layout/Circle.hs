@@ -1,11 +1,12 @@
 module Automata.Layout.Circle (layout) where
 
 import Automata.Types
+import Data.List (singleton)
 
 -- Lay out the states in a circle
 layout :: Automaton s t -> AutomatonLayout s t
 layout a = AL {
-    positionedStates = posStates,
+    positionedStates = map singleton posStates,
     positionedTransitions = transitions a
   }
   where
