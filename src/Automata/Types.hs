@@ -97,6 +97,10 @@ without :: PositionConstraint s -> State s -> State s
 (Ab a b) `without` s = bool a b (s == a)
 (Le a b) `without` s = bool a b (s == a)
 
+conToPair :: PositionConstraint s -> (State s, State s)
+conToPair (Ab a b) = (a, b)
+conToPair (Le a b) = (a, b)
+
 data AutomatonRender = TextData Text | BinaryData Text
 
 

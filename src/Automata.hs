@@ -4,9 +4,9 @@ module Automata where
 
 import Automata.Types
 import Automata.Render
-import Automata.Layout.Energy
 
 import qualified Control.Monad.State as S
+import Data.List (nub)
 
 
 
@@ -37,21 +37,37 @@ initial (S sid _) = S.modify $ \a -> a { initialS = sid }
 final :: State s -> AutomatonBuilder s t
 final (S sid _) = S.modify $ \a -> a { finalS = sid : finalS a }
 
--- TODO: ensure a node only relates to one other node.
---       i.e. can have a `leftOf` b, b `above` b. But cannot have 'b' as different.
---       Also cannot have contradicting leftOf, rightOf. or a L b, b L a
---       Checking for cycles in realtion graph might be sufficient
+
 leftOf :: State s -> State s -> AutomatonBuilder s t
-x `leftOf` y = S.modify $ \a -> a { positions = Le x y : positions a }
+x `leftOf` y = S.modify $ addConstraint (Le x y)
 
 above :: State s -> State s -> AutomatonBuilder s t
-x `above` y = S.modify $ \a -> a { positions = Ab x y : positions a }
+x `above` y = S.modify $ addConstraint (Ab x y)
 
 rightOf :: State s -> State s -> AutomatonBuilder s t
-x `rightOf` y = S.modify $ \a -> a { positions = Le y x : positions a }
+x `rightOf` y = S.modify $ addConstraint (Le y x)
 
 below :: State s -> State s -> AutomatonBuilder s t
-x `below` y = S.modify $ \a -> a { positions = Ab y x : positions a }
+x `below` y = S.modify $ addConstraint (Ab y x)
+
+addConstraint :: PositionConstraint s -> Automaton s t -> Automaton s t
+addConstraint c a
+  | validConstraints cons = a { positions = cons }
+  | otherwise = error $
+                  "Circular positioning constraint detected due to constraint between states named `" <>
+                  show (fst $ conToPair c) <> "` and `" <> show (snd $ conToPair c) <> "`."
+  where cons = c : positions a
+
+validConstraints :: [PositionConstraint s] -> Bool
+validConstraints [] = True
+validConstraints cons = not $ checkCycle cons [] []
+  where
+    -- checkCycle edgesRemaining nodesInComponent nodesToBeAddedToComponent
+    checkCycle cs [] [] = checkCycle cs [] [fst $ conToPair $ head cs] -- initialise search through next component
+    checkCycle [] sts xs = (sts ++ xs) /= nub (sts ++ xs) -- gone through all edges, check for cycle
+    checkCycle cs sts [] = (sts /= nub sts) || checkCycle cs [] [] -- check cycle in connected component, if acyclic check next component
+    checkCycle cs sts (x:xs) = checkCycle (filter (`notElem` edges) cs) (x:sts) (xs ++ map (`without` x) edges) -- add node to connected compnent + add neighbours to queue
+      where edges = filter (constrained x) cs
 
 a1 :: AutomatonBuilder String Int
 a1 = do
