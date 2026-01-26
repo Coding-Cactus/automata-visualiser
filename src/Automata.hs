@@ -110,3 +110,17 @@ a1 = do
   f >-|1|-> h
   i >-|1|-> k
   l >-|1|-> b
+
+a2 = do
+  a <- state "a"
+  b <- state "b"
+  c <- state "c"
+  d <- state "d"
+
+  initial a
+  final d
+
+  a >-|'a'|-> b
+  b >-|'b'|-> c
+  c >-|'b'|-> a
+  b >-|'a'|-> d

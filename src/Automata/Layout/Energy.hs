@@ -10,9 +10,11 @@ import System.Random
 lambda1 :: Double
 lambda2 :: Double
 lambda3 :: Double
+lambda4 :: Double
 lambda1 = 1
 lambda2 = 2
 lambda3 = 25
+lambda4 = 1.5
 
 iterPerStep :: Int
 iterPerStep = 10
@@ -69,7 +71,7 @@ nextState temp groups gen = (xs ++ g' : tail ys, gen3)
     (dy, gen3) = randomR (-stepSize, stepSize) gen2
 
 totalEnergy :: [[PositionedState]] -> [Transition s t] -> Double
-totalEnergy g t = lambda1 * nodeDistances g + lambda2 * edgeLengths g t + lambda3 * nodeEdgeDistances g t
+totalEnergy g t = lambda1 * nodeDistances g + lambda2 * edgeLengths g t + lambda3 * nodeEdgeDistances g t + lambda4 * horizontality g
 
 nodeDistances :: [[PositionedState]] -> Double
 nodeDistances groups = sum $ map energy $ concat groups
@@ -99,7 +101,11 @@ nodeEdgeDistances groups transitions = sum $ map energy $ concat groups
               then sqrt ((a + lambda*b)**2 + (c + lambda*d)**2)
               else min (dist s u') (dist s v')
 
-
+horizontality :: [[PositionedState]] -> Double
+horizontality groups = sum $ map energy $ concat groups
+  where
+    energy (PS { y=y }) = (middle - y) ** 2
+    middle = sum (map y $ concat groups) / fromIntegral (length $ concat groups)
 
 
 betweenAnyOrder :: Ord a => a -> a -> a -> Bool
