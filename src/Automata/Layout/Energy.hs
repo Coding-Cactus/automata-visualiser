@@ -70,24 +70,24 @@ nextState temp groups gen = (xs ++ g' : tail ys, gen3)
     (dx, gen2) = randomR (-stepSize, stepSize) gen1
     (dy, gen3) = randomR (-stepSize, stepSize) gen2
 
-totalEnergy :: [[PositionedState]] -> [Transition s t] -> Double
+totalEnergy :: [[PositionedState]] -> [Transition t] -> Double
 totalEnergy g t = lambda1 * nodeDistances g + lambda2 * edgeLengths g t + lambda3 * nodeEdgeDistances g t + lambda4 * horizontality g
 
 nodeDistances :: [[PositionedState]] -> Double
 nodeDistances groups = sum $ map energy $ concat groups
   where energy u = sum $ map (\v -> 1 / dist u v ** 2) $ concatMap (filter (\v -> psid v > psid u)) groups
 
-edgeLengths :: [[PositionedState]] -> [Transition s t] -> Double
+edgeLengths :: [[PositionedState]] -> [Transition t] -> Double
 edgeLengths groups transitions = sum $ map energy transitions
   where
-    getPState (S sid _) = head $ concatMap (filter ((==) sid . psid)) groups
+    getPState sid = head $ concatMap (filter ((==) sid . psid)) groups
     energy (T u v _) = dist (getPState u) (getPState v) ** 2
 
-nodeEdgeDistances :: [[PositionedState]] -> [Transition s t] -> Double
+nodeEdgeDistances :: [[PositionedState]] -> [Transition t] -> Double
 nodeEdgeDistances groups transitions = sum $ map energy $ concat groups
   where
-    getPState (S sid _) = head $ concatMap (filter ((==) sid . psid)) groups
-    energy s@PS { psid, x=sx, y=sy } = sum $ map distCost $ filter (\(T (S uId _) (S vId _) _) -> uId /= psid && vId /= psid) transitions
+    getPState sid = head $ concatMap (filter ((==) sid . psid)) groups
+    energy s@PS { psid, x=sx, y=sy } = sum $ map distCost $ filter (\(T uId vId _) -> uId /= psid && vId /= psid) transitions
       where
         distCost (T u v _) =  1 / max 0.001 distance ** 2
           where

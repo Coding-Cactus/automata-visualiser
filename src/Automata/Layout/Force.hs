@@ -47,7 +47,7 @@ movement (AL groups trns) = map (\u -> (groupMotionX u, groupMotionY u)) groups
 
     transitionTensionX u v = if hasTransition u v then tensionX u v else 0
     transitionTensionY u v = if hasTransition u v then tensionY u v else 0
-    hasTransition u v = any (\(T (S id1 _) (S id2 _) _) -> (id1, id2) == (psid u, psid v) || (id1, id2) == (psid v, psid u)) trns
+    hasTransition u v = any (\(T id1 id2 _) -> (id1, id2) == (psid u, psid v) || (id1, id2) == (psid v, psid u)) trns
 
     tensionX u v = springConstant * (dist u v - springNatLen) * ((x v - x u) / dist u v)
     tensionY u v = springConstant * (dist u v - springNatLen) * ((y v - y u) / dist u v)

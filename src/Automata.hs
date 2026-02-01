@@ -16,7 +16,7 @@ s >-| condition = (s, condition)
 
 infixl 5 |->
 (|->) :: TransitionLabel t => (State s, t) -> State s -> S.State (Automaton s t) ()
-(s1, c) |-> s2 = S.modify (\a -> a { transitions = T s1 s2 c : transitions a })
+(S u _, c) |-> (S v _) = S.modify (\a -> a { transitions = T u v c : transitions a })
 
 infixl 6 ~~
 (~~) :: (Label t, Label w) => t -> (w, w) -> StackTransition t w
@@ -74,53 +74,16 @@ a1 = do
   a <- state "a"
   b <- state "b"
   c <- state "c"
-  d <- state "d"
-  e <- state "e"
-  f <- state "f"
-  g <- state "g"
-  h <- state "h"
-  i <- state "i"
-  j <- state "j"
-  k <- state "k"
-  l <- state "l"
 
   initial a
+  final a
 
-  a >-|0|-> b
+  a >-|1|-> b
+  a >-|0|-> a
   a >-|0|-> c
-  b `leftOf` c
-  a `above` b
 
-  d >-|0|-> e
-  d >-|0|-> f
-  e `above` f
-  d `rightOf` e
+  b >-|1|-> b
+  -- b >-|0|-> a
 
-  g >-|0|-> h
-  g >-|0|-> i
-  h `rightOf` i
-  g `below` h
-
-  j >-|0|-> k
-  j >-|0|-> l
-  k `below` l
-  j `leftOf` k
-
-  c >-|1|-> e
-  f >-|1|-> h
-  i >-|1|-> k
-  l >-|1|-> b
-
-a2 = do
-  a <- state "a"
-  b <- state "b"
-  c <- state "c"
-  d <- state "d"
-
-  initial a
-  final d
-
-  a >-|'a'|-> b
-  b >-|'b'|-> c
-  c >-|'b'|-> a
-  b >-|'a'|-> d
+  c >-|0|-> c
+  c >-|1|-> b

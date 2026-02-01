@@ -9,7 +9,7 @@ import Data.Bool
 
 data Automaton s t = Automaton {
   states :: [State s],
-  transitions :: [Transition s t],
+  transitions :: [Transition t],
   initialS :: Int,
   finalS :: [Int],
   positions :: [PositionConstraint s]
@@ -51,10 +51,10 @@ instance Label Double where
   drawLabel = pack . show
 
 
-data Transition s t where
-  T :: TransitionLabel t => State s -> State s -> t -> Transition s t
+data Transition t where
+  T :: TransitionLabel t => Int -> Int -> t -> Transition t
 
-instance Show (Transition s t) where
+instance Show (Transition t) where
   show (T s1 s2 t) = show (s1, s2, toTransition t)
 
 class TransitionLabel a where
@@ -123,10 +123,10 @@ data PositionedTransition = PT {
 
 data AutomatonLayout s t = AL {
   positionedStates :: [[PositionedState]],
-  positionedTransitions :: [Transition s t]
+  positionedTransitions :: [Transition t]
 } deriving (Show)
 
 data AutomatonLayoutAnimation s t = ALA {
   frames :: [[[PositionedState]]],
-  transitionsStatic :: [Transition s t]
+  transitionsStatic :: [Transition t]
 } deriving (Show)
