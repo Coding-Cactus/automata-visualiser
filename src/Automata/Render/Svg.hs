@@ -171,7 +171,7 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
     statesAndAvailableSpaces = map calculateAvailable selfLoopAngles
       where
         calculateAvailable (s, loopAngles, edgeAngles) = (s, invert $ mergeLoops edgeAngles $ map snd loopAngles)
-        mergeLoops eAngles lAngles = sort (map (\a -> (a, a)) eAngles ++ map (\x -> (x - loopSeparationAngle/2, x + loopSeparationAngle/2)) lAngles)
+        mergeLoops eAngles lAngles = mergeRanges [] $ sort (map (\a -> (a, a)) eAngles ++ map (\x -> (x - loopSeparationAngle/2, x + loopSeparationAngle/2)) lAngles)
           where
             mergeRanges xs [] = reverse xs
             mergeRanges [] (y:ys) = mergeRanges [y] ys
