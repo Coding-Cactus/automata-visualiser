@@ -189,9 +189,9 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
 
 drawState :: (PositionedState, [(Double, Double)]) -> [SVG Double]
 drawState (PS _ name xPos yPos isS isF, angles) = [Circle xPos yPos svgStateRadius,
-                                            Text xPos yPos name]
-                                            <> outerCircle
-                                            <> startArrow
+                                                   Text xPos yPos name]
+                                                   <> outerCircle
+                                                   <> startArrow
   where
     outerCircle = if isF then [Circle xPos yPos svgAcceptStateRadius] else mempty
     startArrow = if isS then [makeStart] else mempty
@@ -230,75 +230,3 @@ drawLoopTransition (state, (label, orientation)) = [Arc x1 y1 x2 y2 loopRadius T
     labelY = centreY + (loopRadius + svgTransLabelGap) * sin orientation
     -- gather state information
     stateRadius = if isFinal state then svgAcceptStateRadius else svgStateRadius
-
-buildSvg' :: [PositionedState] -> [Transition t] -> SVG Double
-buildSvg' sts ts = Svg $ concatMap drawState sts <> concatMap drawTransition ts
-  where
-    drawState (PS _ name xPos yPos isS isF) = [Circle scaleX scaleY svgStateRadius,
-                                            Text scaleX scaleY name]
-                                            <> outerCircle
-                                            <> startArrow
-      where
-        scaleX = svgPositionScale * xPos
-        scaleY = svgPositionScale * yPos
-        outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isF
-        outerCircle = if isF then [Circle scaleX scaleY svgAcceptStateRadius] else mempty
-        startArrow = if isS then [Line (scaleX - outerCircleRadius - svgStartArrowLen) scaleY (scaleX - outerCircleRadius) scaleY] else mempty
-    drawTransition t@(T aId bId _) = bool drawLine drawLoop (aId == bId) t
-    drawLine (T aId bId label) = [Line x1' y1' x2' y2',
-                                              Text xMid yMid (toTransition label)]
-      where
-        x1 = svgPositionScale * x aState -- centre of the states
-        y1 = svgPositionScale * y aState
-        x2 = svgPositionScale * x bState
-        y2 = svgPositionScale * y bState
-        x1' = x1 + (aRadius / hypLength) * adjLength -- edge of the states
-        y1' = y1 + (aRadius / hypLength) * opLength
-        x2' = x2 - (bRadius / hypLength) * adjLength
-        y2' = y2 - (bRadius / hypLength) * opLength
-        xMid = (x1 + x2) / 2 + if x2 - x1 == 0 then svgTransLabelGap else midFactor * gradient
-        yMid = (y1 + y2) / 2 - midFactor
-        midFactor = svgTransLabelGap / (-sqrt (1 + gradient**2))
-        aState = head $ filter ((==) aId . psid) sts
-        bState = head $ filter ((==) bId . psid) sts
-        aRadius = if isFinal aState then svgAcceptStateRadius else svgStateRadius
-        bRadius = if isFinal bState then svgAcceptStateRadius else svgStateRadius
-        opLength = y2 - y1
-        adjLength = x2 - x1
-        hypLength = sqrt ((x1 - x2)**2 + (y1 - y2)**2)
-        gradient = (y2 - y1) / (x2 - x1)
-    drawLoop (T aId _ label) = [Arc x1 y1 x2 y2 loopRadius True True,
-                                      Text labelX labelY (toTransition label)]
-      where
-        -- scale to svg coordinates
-        x' = svgPositionScale * x state
-        y' = svgPositionScale * y state
-        -- arc origin
-        x1 = x' + stateRadius * cos (orientation - loopSeparationAngle/2)
-        y1 = y' + stateRadius * sin (orientation - loopSeparationAngle/2)
-        -- arc end
-        x2 = x' + stateRadius * cos (orientation - loopSeparationAngle/2 + loopSeparationAngle)
-        y2 = y' + stateRadius * sin (orientation - loopSeparationAngle/2 + loopSeparationAngle)
-        -- loop orientation: find emptiest arc on the state circumference
-        orientation = snd $ maximum (zipWith (\a b -> (b - a, (b + a)/2)) edgeAngles (tail edgeAngles))
-        edgeAngles = (fromMaybe 0 (safeLast angles) - 2*pi) : angles
-          where angles = sort (bool [] [pi] (isInitial state) ++ map stateAngle connectedStates)
-        stateAngle s = let (dx, dy) = (x s - x state, y s - y state) in
-          atan (dy/dx) + if dx < 0 || dy < 0 then pi + if dx > 0 && dy < 0 then pi else 0 else 0
-        connectedStates = map (\(T a b _) -> getState $ bool a b (a == aId)) $ filter (\(T a b _) -> (a == aId || b == aId) && a /= b) ts
-        -- label positioning: find loop centre and offset by radius+gap
-        loopAngle = acos $ (loopRadius**2 - stateRadius**2 * (1 - cos loopSeparationAngle)) / loopRadius**2
-        centreOffsetAngle = orientation + loopAngle/2 - pi/2
-        centreX = x1 - loopRadius * sin centreOffsetAngle
-        centreY = y1 + loopRadius * cos centreOffsetAngle
-        labelX = centreX + (loopRadius + svgTransLabelGap) * cos orientation
-        labelY = centreY + (loopRadius + svgTransLabelGap) * sin orientation
-        -- gather state information
-        getState i = head $ filter ((==) i . psid) sts
-        state = getState aId
-        stateRadius = if isFinal state then svgAcceptStateRadius else svgStateRadius
-
-safeLast :: [a] -> Maybe a
-safeLast [] = Nothing
-safeLast [x] = Just x
-safeLast (_:xs) = safeLast xs
