@@ -1,0 +1,92 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Automata.Render.Svg.Types where
+
+import Text.Blaze.Svg11 ((!), mkPath, m, aa)
+import qualified Text.Blaze.Svg11 as S
+import qualified Text.Blaze.Svg11.Attributes as A
+import Text.Blaze.Svg.Renderer.Text (renderSvg)
+import Text.Blaze (toValue, text)
+
+import Data.Foldable (foldl', forM_)
+import qualified Data.Text as T
+import Data.Text.Lazy (toStrict)
+
+data BoundingBox a where
+  BB :: (Show a, Num a, Ord a) => {
+    xmin :: a,
+    xmax :: a,
+    ymin :: a,
+    ymax :: a
+  } -> BoundingBox a
+
+data SVG a where
+  Svg    :: (Show a, Num a, Ord a) => [SVG a] -> SVG a
+  Text   :: (Show a, Num a, Ord a) => a -> a -> T.Text -> SVG a -- Text x y content
+  Circle :: (Show a, Num a, Ord a) => a -> a -> a -> SVG a      -- Circle x y radius
+  Line   :: (Show a, Num a, Ord a) => a -> a -> a -> a -> SVG a -- Line startX startY endX endY
+  Arc    :: (Show a, Num a, Ord a) => a -> a -> a -> a -> a -> Bool -> Bool -> SVG a -- Arc x1 y1 x2 y2 radius largeArcFlag sweepFlag
+
+render :: SVG a -> T.Text
+render = toStrict . renderSvg . toSvg
+
+
+renderAnimation :: [SVG a] -> T.Text
+renderAnimation = T.intercalate "\n" . map (T.intercalate "" . tail.tail.tail . T.lines . toStrict . renderSvg . toSvg)
+
+toSvg :: SVG a -> S.Svg
+toSvg (Svg elems) = let (BB minX maxX minY maxY) = boundingBox $ Svg elems in
+  S.docTypeSvg ! A.version "1.1" ! A.viewbox (toValue (unwords $ map show [minX, minY, maxX - minX, maxY - minY])) $ do
+    arrowMarkerDef
+    forM_ elems toSvg
+toSvg (Text x y txt) = let (x', y') = mapPair (toValue . show) (x, y) in
+  S.text_ ! A.textAnchor "middle" ! A.dominantBaseline "middle"
+    ! A.x x' ! A.y y' $
+      text txt
+toSvg (Circle x y r) = let (x', y', r') = mapTriple (toValue . show) (x, y, r) in
+  S.circle ! A.stroke "black" ! A.fill "none"
+    ! A.cx x' ! A.cy y' ! A.r r'
+toSvg (Line x1 y1 x2 y2) = let (x1', y1', x2', y2') = mapQuadruple (toValue . show) (x1, y1, x2, y2) in
+  S.line ! A.stroke "black" ! A.markerEnd "url(#arrow)"
+    ! A.x1 x1' ! A.x2 x2' ! A.y1 y1' ! A.y2 y2'
+toSvg (Arc x1 y1 x2 y2 radius largeArc sweep) = S.path ! A.d path ! A.fill "none" ! A.stroke "black" ! A.markerEnd "url(#arrow)"
+    where
+      path = mkPath $ do
+        m x1 y1
+        aa radius radius 0 largeArc sweep x2 y2
+
+arrowMarkerDef :: S.Svg
+arrowMarkerDef = -- https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/marker
+  S.defs $
+    S.marker ! A.id_ "arrow"
+      ! A.viewbox "0 0 10 10" ! A.refx "10" ! A.refy "5"
+      ! A.markerwidth "6" ! A.markerheight "6"
+      ! A.orient "auto-start-reverse" $
+        S.path ! A.d "M 0 0 L 10 5 L 0 10 z"
+
+
+boundingBox :: SVG a -> BoundingBox a
+boundingBox (Svg []) = BB 0 0 0 0
+boundingBox (Svg elems) = foldl' findBox initBox $ map boundingBox (tail elems)
+  where
+    findBox (BB minX maxX minY maxY) (BB minX' maxX' minY' maxY') = BB {
+      xmin = min minX minX',
+      xmax = max maxX maxX',
+      ymin = min minY minY',
+      ymax = max maxY maxY'
+    }
+    initBox = boundingBox $ head elems
+boundingBox (Text x y t) = let l = fromIntegral $ T.length t in BB (x - 10*l) (x + 10*l) (y-15) (y+15)
+boundingBox (Circle x y r) = BB (x-r) (x+r) (y-r) (y+r)
+boundingBox (Line x1 y1 x2 y2) = BB (min x1 x2) (max x1 x2) (min y1 y2) (max y1 y2)
+boundingBox (Arc x1 y1 x2 y2 r _ _) = BB (min x1 x2 - (2*r)) (max x1 x2 + (2*r)) (min y1 y2 - (2*r)) (max y1 y2 + (2*r)) -- estimate, not actual bounding box
+
+
+
+mapPair :: (a -> b) -> (a, a) -> (b, b)
+mapPair f (x, y) = (f x, f y)
+mapTriple :: (a -> b) -> (a, a, a) -> (b, b, b)
+mapTriple f (x, y, z) = (f x, f y, f z)
+mapQuadruple :: (a -> b) -> (a, a, a, a) -> (b, b, b, b)
+mapQuadruple f (w, x, y, z) = (f w, f x, f y, f z)
