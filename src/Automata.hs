@@ -16,7 +16,7 @@ s >-| condition = (s, condition)
 
 infixl 5 |->
 (|->) :: TransitionLabel t => (State s, t) -> State s -> S.State (Automaton s t) ()
-(S u _, c) |-> (S v _) = S.modify (\a -> a { transitions = T u v c : transitions a })
+(S u _, c) |-> (S v _) = S.modify (\a -> a { transitions = T (length $ transitions a) u v c : transitions a })
 
 infixl 6 ~~
 (~~) :: (Label t, Label w) => t -> (w, w) -> StackTransition t w
@@ -83,7 +83,13 @@ a1 = do
   a >-|0|-> c
 
   b >-|1|-> b
-  -- b >-|0|-> a
+  b >-|1|-> b
+  b >-|1|-> b
+  a >-|0|-> b
 
   c >-|0|-> c
+  b >-|1|-> c
+  b >-|1|-> c
   c >-|1|-> b
+
+  c `below` a

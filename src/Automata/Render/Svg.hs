@@ -1,12 +1,12 @@
-
 module Automata.Render.Svg (svg, svgAnimation) where
 
 import Automata.Types
 import Automata.Render.Svg.Types
 
 import Data.Bool
-import Data.List (sort, partition, sortBy)
+import Data.List (sort, partition, sortBy, elemIndex)
 import qualified Data.Text as T
+import Data.Maybe (fromMaybe)
 
 svgStateGap :: Double
 svgStateRadius :: Double
@@ -16,6 +16,7 @@ svgTransLabelGap :: Double
 svgStartArrowLen :: Double
 loopSeparationAngle :: Double
 loopRadius :: Double
+curvedEdgeGap :: Double
 svgStateGap = 30
 svgStateRadius = 25
 svgAcceptStateRadius = svgStateRadius + 3
@@ -24,15 +25,17 @@ svgTransLabelGap = 10
 svgStartArrowLen = 25
 loopSeparationAngle = pi / 3
 loopRadius = 20
+curvedEdgeGap = pi/12
 
 svgAnimation :: AutomatonLayoutAnimation s t -> AutomatonRender
 svgAnimation (ALA frames ts) = TextData $ renderAnimation $ map ((`buildSvg` ts) . concat) frames
 
 svg :: AutomatonLayout s t -> AutomatonRender
 svg (AL groups ts) = TextData $ render $ buildSvg (map scale $ concat groups) ts
-  where scale s = s { x = svgPositionScale * x s, y = svgPositionScale * y s }
-
-
+  where
+    scale s = s { x = svgPositionScale * (x s - minX), y = svgPositionScale * (y s - minY) }
+    minX = minimum $ map x $ concat groups
+    minY = minimum $ map y $ concat groups
 
 buildSvg :: [PositionedState] -> [Transition t] -> SVG Double
 buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMap drawStraightTransition transitionPositions <> concatMap drawLoopTransition loopTransitions
@@ -42,18 +45,33 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
 
     calculateTransitions = (map position straight, loopInfo)
       where
-        (loops, straight) = partition (\(T a b _) -> a == b) ts
+        (loops, straight) = partition (\(T _ a b _) -> a == b) ts
 
-        position (T a b l) = PT (toTransition l) x1 y1 x2 y2
+        position t@(T _ a b l) =  PT (toTransition l) x1 y1 x2 y2 x3 y3 x4 y4
           where
-            x1 = x aPos + (aRadius / hypLength) * adjLength
-            y1 = y aPos + (aRadius / hypLength) * oppLength
-            x2 = x bPos - (bRadius / hypLength) * adjLength
-            y2 = y bPos - (bRadius / hypLength) * oppLength
+            -- enpoints after rounding edge
+            x1 = x aPos + aRadius * cos (edgeAngle aPos t + direction * curveAngle)
+            y1 = y aPos + aRadius * sin (edgeAngle aPos t + direction * curveAngle)
+            x2 = x bPos + bRadius * cos (edgeAngle bPos t - direction * curveAngle)
+            y2 = y bPos + bRadius * sin (edgeAngle bPos t - direction * curveAngle)
+            -- quadratic bezier curve turning point
+            x3 = midX - midGap * sin (edgeAngle aPos t)
+            y3 = midY + midGap * cos (edgeAngle aPos t)
+            midX = (x aPos + x bPos) / 2
+            midY = (y aPos + y bPos) / 2
+            midGap = direction * 2.5 * (sqrt ((x2 - x1)**2 + (y2 - y1)**2) / 2) * tan curveAngle -- the scale factor (2.5) is for extra bendiness
+            -- easier to calculate label position now
+            x4 = midX - (midGap - labelDir * svgTransLabelGap) * sin (edgeAngle aPos t)
+            y4 = midY + (midGap - labelDir * svgTransLabelGap) * cos (edgeAngle aPos t)
+            labelDir = bool (-1) 1 (midGap > 0)
 
-            adjLength = x bPos - x aPos
-            oppLength = y bPos - y aPos
-            hypLength = sqrt $ adjLength**2 + oppLength**2
+            curveAngle
+              | even commonEdgeCount = (-1.0)^n * curvedEdgeGap * fromIntegral (1 + n `div` 2)
+              | otherwise = (-1.0)^n * curvedEdgeGap * fromIntegral ((n + 1) `div` 2)
+            n = fromMaybe 0 (elemIndex t commonEdges)
+            direction = bool (-1) 1 (x aPos < x bPos) -- sync rotation direction between opposite direction arrows
+            commonEdgeCount = length commonEdges
+            commonEdges = filter (\(T _ u v _) -> (a == u && b == v) || (b == u && a == v)) straight
 
             aPos = head $ filter ((==) a . psid) sts
             bPos = head $ filter ((==) b . psid) sts
@@ -62,13 +80,13 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
 
         loopInfo = map (\s -> (s, (edgeAngles s, loopList s))) sts
           where
-            edgeAngles u = sort $ map (angle u) $ filter (\(T a b _) -> psid u == a || psid u == b) straight
-            angle u (T a b _) = atan (dy/dx) + if dx < 0 || dy < 0 then pi + if dx > 0 && dy < 0 then pi else 0 else 0
-              where
-                v = head $ filter (\(PS {psid=i}) -> psid u /= i && (i == a || i == b)) sts
-                (dx, dy) = (x v - x u, y v - y u)
+            edgeAngles u = sort $ map (edgeAngle u) $ filter (\(T _ a b _) -> psid u == a || psid u == b) straight
+            loopList u = map (\(T _ _ _ l) -> toTransition l) $ filter (\(T _ a _ _) -> a == psid u) loops
 
-            loopList u = map (\(T _ _ l) -> toTransition l) $ filter (\(T a _ _) -> a == psid u) loops
+        edgeAngle u (T _ a b _) = atan (dy/dx) + if dx < 0 || dy < 0 then pi + if dx >= 0 && dy <= 0 then pi else 0 else 0
+          where
+            v = head $ filter (\(PS {psid=i}) -> psid u /= i && (i == a || i == b)) sts
+            (dx, dy) = (x v - x u, y v - y u)
 
     selfLoopAngles = map calculateSelfLoops selfLoopInfo
     calculateSelfLoops (s, (edgeAngles, labels)) = (s, angles (zipWith (\a b -> ((a, b), [])) (last edgeAngles - 2*pi : edgeAngles) edgeAngles) labels, edgeAngles)
@@ -114,13 +132,8 @@ drawState (PS _ name xPos yPos isS isF, angles) = [Circle xPos yPos svgStateRadi
     outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isF
 
 drawStraightTransition :: PositionedTransition -> [SVG Double]
-drawStraightTransition (PT label x1 y1 x2 y2) = [Line x1 y1 x2 y2,
-                                                 Text textX textY label]
-  where
-    textX = (x1 + x2) / 2 + if x2 - x1 == 0 then svgTransLabelGap else offsetFactor * gradient
-    textY = (y1 + y2) / 2 - offsetFactor
-    offsetFactor = svgTransLabelGap / (-sqrt (1 + gradient**2))
-    gradient = (y2 - y1) / (x2 - x1)
+drawStraightTransition (PT label x1 y1 x2 y2 x3 y3 x4 y4) = [Curve x1 y1 x2 y2 x3 y3,
+                                                             Text x4 y4 label]
 
 drawLoopTransition :: (PositionedState, (T.Text, Double)) -> [SVG Double]
 drawLoopTransition (state, (label, orientation)) = [Arc x1 y1 x2 y2 loopRadius True True,

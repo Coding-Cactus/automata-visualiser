@@ -81,15 +81,15 @@ edgeLengths :: [[PositionedState]] -> [Transition t] -> Double
 edgeLengths groups transitions = sum $ map energy transitions
   where
     getPState sid = head $ concatMap (filter ((==) sid . psid)) groups
-    energy (T u v _) = dist (getPState u) (getPState v) ** 2
+    energy (T _ u v _) = dist (getPState u) (getPState v) ** 2
 
 nodeEdgeDistances :: [[PositionedState]] -> [Transition t] -> Double
 nodeEdgeDistances groups transitions = sum $ map energy $ concat groups
   where
     getPState sid = head $ concatMap (filter ((==) sid . psid)) groups
-    energy s@PS { psid, x=sx, y=sy } = sum $ map distCost $ filter (\(T uId vId _) -> uId /= psid && vId /= psid) transitions
+    energy s@PS { psid, x=sx, y=sy } = sum $ map distCost $ filter (\(T _ uId vId _) -> uId /= psid && vId /= psid) transitions
       where
-        distCost (T u v _) =  1 / max 0.001 distance ** 2
+        distCost (T _ u v _) =  1 / max 0.001 distance ** 2
           where
             (u'@PS { x=ux, y=uy }, v'@PS { x=vx, y=vy }) = (getPState u, getPState v)
             a = ux - sx

@@ -3,7 +3,7 @@
 
 module Automata.Render.Svg.Types where
 
-import Text.Blaze.Svg11 ((!), mkPath, m, aa)
+import Text.Blaze.Svg11 ((!), mkPath, m, aa, q)
 import qualified Text.Blaze.Svg11 as S
 import qualified Text.Blaze.Svg11.Attributes as A
 import Text.Blaze.Svg.Renderer.Text (renderSvg)
@@ -12,6 +12,7 @@ import Text.Blaze (toValue, text)
 import Data.Foldable (foldl', forM_)
 import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
+import Data.List (minimum, maximum)
 
 data BoundingBox a where
   BB :: (Show a, Num a, Ord a) => {
@@ -25,7 +26,8 @@ data SVG a where
   Svg    :: (Show a, Num a, Ord a) => [SVG a] -> SVG a
   Text   :: (Show a, Num a, Ord a) => a -> a -> T.Text -> SVG a -- Text x y content
   Circle :: (Show a, Num a, Ord a) => a -> a -> a -> SVG a      -- Circle x y radius
-  Line   :: (Show a, Num a, Ord a) => a -> a -> a -> a -> SVG a -- Line startX startY endX endY
+  Line  :: (Show a, Num a, Ord a) => a -> a -> a -> a -> SVG a -- Line startX startY endX endY
+  Curve  :: (Show a, Num a, Ord a) => a -> a -> a -> a -> a -> a -> SVG a -- Curve startX startY endX endY curveX curveY
   Arc    :: (Show a, Num a, Ord a) => a -> a -> a -> a -> a -> Bool -> Bool -> SVG a -- Arc x1 y1 x2 y2 radius largeArcFlag sweepFlag
 
 render :: SVG a -> T.Text
@@ -50,6 +52,11 @@ toSvg (Circle x y r) = let (x', y', r') = mapTriple (toValue . show) (x, y, r) i
 toSvg (Line x1 y1 x2 y2) = let (x1', y1', x2', y2') = mapQuadruple (toValue . show) (x1, y1, x2, y2) in
   S.line ! A.stroke "black" ! A.markerEnd "url(#arrow)"
     ! A.x1 x1' ! A.x2 x2' ! A.y1 y1' ! A.y2 y2'
+toSvg (Curve x1 y1 x2 y2 x3 y3) = S.path ! A.fill "none" ! A.stroke "black" ! A.markerEnd "url(#arrow)" ! A.d path
+  where
+    path = mkPath $ do
+      m x1 y1
+      q x3 y3 x2 y2
 toSvg (Arc x1 y1 x2 y2 radius largeArc sweep) = S.path ! A.d path ! A.fill "none" ! A.stroke "black" ! A.markerEnd "url(#arrow)"
     where
       path = mkPath $ do
@@ -80,6 +87,7 @@ boundingBox (Svg elems) = foldl' findBox initBox $ map boundingBox (tail elems)
 boundingBox (Text x y t) = let l = fromIntegral $ T.length t in BB (x - 10*l) (x + 10*l) (y-15) (y+15)
 boundingBox (Circle x y r) = BB (x-r) (x+r) (y-r) (y+r)
 boundingBox (Line x1 y1 x2 y2) = BB (min x1 x2) (max x1 x2) (min y1 y2) (max y1 y2)
+boundingBox (Curve x1 y1 x2 y2 x3 y3) = BB (minimum [x1, x2, x3]) (maximum [x1, x2, x3]) (minimum [y1, y2, y3]) (maximum [y1, y2, y3])
 boundingBox (Arc x1 y1 x2 y2 r _ _) = BB (min x1 x2 - (2*r)) (max x1 x2 + (2*r)) (min y1 y2 - (2*r)) (max y1 y2 + (2*r)) -- estimate, not actual bounding box
 
 

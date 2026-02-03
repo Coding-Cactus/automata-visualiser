@@ -52,10 +52,14 @@ instance Label Double where
 
 
 data Transition t where
-  T :: TransitionLabel t => Int -> Int -> t -> Transition t
+  -- T id uId vId label
+  T :: TransitionLabel t => Int -> Int -> Int -> t -> Transition t
 
 instance Show (Transition t) where
-  show (T s1 s2 t) = show (s1, s2, toTransition t)
+  show (T i s1 s2 t) = show (i, s1, s2, toTransition t)
+
+instance Eq (Transition t) where
+  (T i1 _ _ _) == (T i2 _ _ _) = i1 == i2
 
 class TransitionLabel a where
   toTransition :: a -> Text
@@ -118,7 +122,11 @@ data PositionedTransition = PT {
   startX :: Double,
   startY :: Double,
   endX :: Double,
-  endY :: Double
+  endY :: Double,
+  midX :: Double,
+  midY :: Double,
+  labelX :: Double,
+  labelY :: Double
 } deriving (Eq, Show)
 
 data AutomatonLayout s t = AL {
