@@ -10,18 +10,17 @@ import Data.List (nub)
 
 
 
-infixl 5 >-|
-(>-|) :: State s -> t -> (State s, t)
-s >-| condition = (s, condition)
+infixl 5 >--
+(>--) :: State s -> [t] -> (State s, [t])
+s >-- condition = (s, condition)
 
-infixl 5 |->
-(|->) :: TransitionLabel t => (State s, t) -> State s -> S.State (Automaton s t) ()
-(S u _, c) |-> (S v _) = S.modify (\a -> a { transitions = T (length $ transitions a) u v c : transitions a })
+infixl 5 -->
+(-->) :: TransitionLabel t => (State s, [t]) -> State s -> S.State (Automaton s t) ()
+(S u _, c) --> (S v _) = S.modify (\a -> a { transitions = T (length $ transitions a) u v c : transitions a })
 
 infixl 6 ~~
 (~~) :: (Label t, Label w) => t -> (w, w) -> StackTransition t w
 (~~) = StackT
-
 
 state :: Label s => s -> S.State (Automaton s t) (State s)
 state name = do
@@ -78,18 +77,18 @@ a1 = do
   initial a
   final a
 
-  a >-|1|-> b
-  a >-|0|-> a
-  a >-|0|-> c
+  a >--[1]--> b
+  a >--[0]--> a
+  a >--[0]--> c
 
-  b >-|1|-> b
-  b >-|1|-> b
-  b >-|1|-> b
-  a >-|0|-> b
+  b >--[0]--> b
+  b >--[1]--> b
+  b >--[2]--> b
+  a >--[0]--> b
 
-  c >-|0|-> c
-  b >-|1|-> c
-  b >-|1|-> c
-  c >-|1|-> b
+  c >--[0]--> c
+  c >--[0]--> b
+  b >--[1]--> c
+  c >--[0,1]--> b
 
   c `below` a

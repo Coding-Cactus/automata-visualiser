@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Automata.Render.Svg (svg, svgAnimation) where
 
 import Automata.Types
@@ -47,7 +49,7 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
       where
         (loops, straight) = partition (\(T _ a b _) -> a == b) ts
 
-        position t@(T _ a b l) =  PT (toTransition l) x1 y1 x2 y2 x3 y3 x4 y4
+        position t@(T _ a b l) =  PT (T.intercalate "," $ map toTransition l) x1 y1 x2 y2 x3 y3 x4 y4
           where
             -- enpoints after rounding edge
             x1 = x aPos + aRadius * cos (edgeAngle aPos t + direction * curveAngle)
@@ -81,7 +83,7 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
         loopInfo = map (\s -> (s, (edgeAngles s, loopList s))) sts
           where
             edgeAngles u = sort $ map (edgeAngle u) $ filter (\(T _ a b _) -> psid u == a || psid u == b) straight
-            loopList u = map (\(T _ _ _ l) -> toTransition l) $ filter (\(T _ a _ _) -> a == psid u) loops
+            loopList u = map (\(T _ _ _ l) -> T.intercalate "," $ map toTransition l) $ filter (\(T _ a _ _) -> a == psid u) loops
 
         edgeAngle u (T _ a b _) = atan (dy/dx) + if dx < 0 || dy < 0 then pi + if dx >= 0 && dy <= 0 then pi else 0 else 0
           where

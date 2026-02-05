@@ -12,7 +12,6 @@ import Text.Blaze (toValue, text)
 import Data.Foldable (foldl', forM_)
 import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
-import Data.List (minimum, maximum)
 
 data BoundingBox a where
   BB :: (Show a, Num a, Ord a) => {
