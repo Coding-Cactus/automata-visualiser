@@ -1,4 +1,4 @@
-module Automata.Layout.Energy (layout, layout') where
+module Automata.Layout.Energy (layout, layout', layoutPositioned) where
 
 import Automata.Types
 import qualified Automata.Layout.Constrained as Constrained
@@ -31,12 +31,15 @@ layout' a = ALA {
     transitionsStatic = transitions a
   }
 
-layout :: Automaton s t -> AutomatonLayout s t
-layout a = let (a', _, _) = untilStableOrCount 50 runStep (Constrained.layout defaultLength a, initialTemp, mkStdGen 8607857038680846995) in a'
+layoutPositioned :: AutomatonLayout s t -> AutomatonLayout s t
+layoutPositioned a = let (a', _, _) = untilStableOrCount 50 runStep (a, initialTemp, mkStdGen 8607857038680846995) in a'
   where
     untilStableOrCount 0 _ x = x
     untilStableOrCount n f x@(AL grps trs, _, _) = bool (untilStableOrCount (n-1) f (f x)) x stable
       where stable = let (AL fgrps ftrs, _, _) = f x in abs (totalEnergy grps trs - totalEnergy fgrps ftrs) < 0.0001
+
+layout :: Automaton s t -> AutomatonLayout s t
+layout = layoutPositioned . Constrained.layout defaultLength
 
 
 runStep :: (AutomatonLayout s t, Double, StdGen) -> (AutomatonLayout s t, Double, StdGen)
