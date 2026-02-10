@@ -93,7 +93,6 @@ a1 = do
 
   c `below` a
 
-
   x <- state "x"
   y <- state "y"
   z <- state "z"

@@ -1,10 +1,11 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Automata.Render (render, render', saveToFile, svg, svgAnimation) where
+module Automata.Render (render, render', saveToFile, svg, svgAnimation, tikz) where
 
 import Automata.Types
 import Automata.Layout.Combined
 import Automata.Render.Svg
+import Automata.Render.Tikz
 
 import qualified Control.Monad.State as S
 import qualified Data.Text.IO as T
