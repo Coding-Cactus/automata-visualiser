@@ -42,7 +42,9 @@ render :: TikzDrawing -> T.Text
 render (TD nodes transitions) = boilerplate initialPos $ T.intercalate "\n\n" [writeNodes nodes, writeTransitions transitions]
   where
     angles = [0, 90, 180, 270]
-    initialPos = snd $ head $ filter (\(a, _) -> a == bestAngle) $ zip angles ["right", "above", "left", "below"]
+    initialPos
+      | null edgeAngles = "left"
+      | otherwise =  snd $ head $ filter (\(a, _) -> a == bestAngle) $ zip angles ["right", "above", "left", "below"]
     bestAngle = maximumBy (\a1 a2 -> compare (spaceAround a1) (spaceAround a2)) angles
     spaceAround angle = min (spaceLeft angle) (spaceRight angle)
     spaceLeft  angle = minimum $ map (abs . (-) angle) $ filter (>= angle) (head edgeAngles + 360 : edgeAngles)
