@@ -12,7 +12,7 @@ tikzCoordinateScale = 1.5
 tikzLoopWidth = 30
 
 tikz :: AutomatonLayout s t -> AutomatonRender
-tikz a = TextData $ render (TD nodes transitions)
+tikz a = pure $ render (TD nodes transitions)
   where
     nodes = map posStateToTikzNode (concat $ positionedStates a)
     transitions = map transToTikzTrans (positionedTransitions a)

@@ -1,10 +1,4 @@
 packages:
  ./
 
-source-repository-package
-  type: git
-  location: https://github.com/kayvank/reanimate-svg
-
-source-repository-package
-  type: git
-  location: https://github.com/kayvank/reanimate
+allow-newer: latex-svg-image:*

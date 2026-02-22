@@ -8,6 +8,8 @@ dependencies:
 - blaze-svg
 - blaze-markup
 - random
+- latex-svg-image
+- regex-tdfa
 
 ghc-options:
 - -Wall

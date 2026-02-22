@@ -68,73 +68,29 @@ validConstraints cons = not $ checkCycle cons [] []
     checkCycle cs sts (x:xs) = checkCycle (filter (`notElem` edges) cs) (x:sts) (xs ++ map (`without` x) edges) -- add node to connected compnent + add neighbours to queue
       where edges = filter (constrained x) cs
 
-a1 :: AutomatonBuilder String Int
+a1 :: AutomatonBuilder String String
 a1 = do
-  a <- state "a"
-  b <- state "b"
-  c <- state "c"
+  a <- state "$q_0$"
+  b <- state "$q_1$"
+  c <- state "$q_2$"
 
   initial a
   final a
 
-  a >--[1]--> b
-  a >--[0]--> a
-  a >--[0]--> c
+  a >--["1"]--> b
+  a >--["0"]--> a
+  a >--["0"]--> c
+  a >--["$\\epsilon$"]--> c
 
-  b >--[0]--> b
-  b >--[1]--> b
-  b >--[2]--> b
-  a >--[0]--> b
+  b >--["0"]--> b
+  b >--["1"]--> b
+  b >--["2"]--> b
+  a >--["0"]--> b
 
-  c >--[0]--> c
-  c >--[0]--> b
-  b >--[1]--> c
-  c >--[0,1]--> b
+  c >--["0"]--> c
+  c >--["0"]--> b
+  b >--["1"]--> c
+  c >--["0","1"]--> b
 
   c `below` a
 
-  x <- state "x"
-  y <- state "y"
-  z <- state "z"
-
-  final x
-
-  x >--[1]--> y
-  x >--[0]--> x
-  x >--[0]--> z
-
-  y >--[0]--> y
-  y >--[1]--> y
-  y >--[2]--> y
-  x >--[0]--> y
-
-  z >--[0]--> z
-  z >--[0]--> y
-  y >--[1]--> z
-  z >--[0,1]--> y
-
-  z `below` x
-
-
-
-  h <- state "h"
-  i <- state "i"
-  j <- state "j"
-
-  final h
-
-  h >--[1]--> i
-  h >--[0]--> h
-  h >--[0]--> j
-
-  i >--[0]--> i
-  i >--[1]--> i
-  i >--[2]--> i
-  h >--[0]--> i
-
-  j >--[0]--> j
-  j >--[0]--> i
-  i >--[1]--> j
-  j >--[0,1]--> i
-
-  j `below` h
