@@ -70,9 +70,9 @@ validConstraints cons = not $ checkCycle cons [] []
 
 a1 :: AutomatonBuilder String String
 a1 = do
-  a <- state "$q_0$"
-  b <- state "$q_1$"
-  c <- state "$q_2$"
+  a <- state "q_0"
+  b <- state "q_1"
+  c <- state "q_2"
 
   initial a
   final a
@@ -80,7 +80,7 @@ a1 = do
   a >--["1"]--> b
   a >--["0"]--> a
   a >--["0"]--> c
-  a >--["$\\epsilon$"]--> c
+  a >--["\\epsilon"]--> c
 
   b >--["0"]--> b
   b >--["1"]--> b

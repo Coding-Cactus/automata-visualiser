@@ -181,5 +181,5 @@ renderLatexLabels s = pure s
 renderLatexLabel :: Double -> Double -> T.Text -> IO (SVG Double)
 renderLatexLabel  x y label = do
   img <- imageForFormula defaultEnv displaymath $ T.unpack label
-  pure $ bool (Text x y label) (Wrapper x y $ Raw $ T.pack $ unlines $ drop 2 $ lines $ fromRight "" img) (isRight img)
+  pure $ bool (Text x y label) (Wrapper x y $ Latex $ T.pack $ unlines $ drop 2 $ lines $ fromRight "" img) (isRight img)
 

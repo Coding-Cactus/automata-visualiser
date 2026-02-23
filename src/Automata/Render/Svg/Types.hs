@@ -40,7 +40,7 @@ data SVG a where
   Curve :: (Show a, Fractional a, Ord a) => a -> a -> a -> a -> a -> a -> SVG a -- Curve startX startY endX endY curveX curveY
   Arc :: (Show a, Fractional a, Ord a) => a -> a -> a -> a -> a -> Bool -> Bool -> SVG a -- Arc x1 y1 x2 y2 radius largeArcFlag sweepFlag
   Wrapper :: (Show a, Fractional a, Ord a) => a -> a -> SVG a -> SVG a -- Wrapper x y innerContent
-  Raw :: T.Text -> SVG Double
+  Latex :: T.Text -> SVG Double -- Already rendered latex svg text
 
 mapSvg :: (Show a, Fractional a, Ord a, Show b, Fractional b, Ord b) => (SVG a -> SVG b) -> SVG a -> SVG b
 mapSvg f (Svg elems) = Svg $ map (mapSvg f) elems
@@ -104,7 +104,7 @@ toSvg (Wrapper x y inner) =
  where
   (BB minX maxX minY maxY) = boundingBox inner
   (h, w) = (maxY - minY, maxX - minX)
-toSvg (Raw txt) = preEscapedText txt
+toSvg (Latex txt) = preEscapedText txt
 
 arrowMarkerDef :: S.Svg
 arrowMarkerDef =
@@ -138,19 +138,16 @@ boundingBox (Line x1 y1 x2 y2) = BB (min x1 x2) (max x1 x2) (min y1 y2) (max y1 
 boundingBox (Curve x1 y1 x2 y2 x3 y3) = BB (minimum [x1, x2, x3]) (maximum [x1, x2, x3]) (minimum [y1, y2, y3]) (maximum [y1, y2, y3])
 boundingBox (Arc x1 y1 x2 y2 r _ _) = BB (min x1 x2 - (2 * r)) (max x1 x2 + (2 * r)) (min y1 y2 - (2 * r)) (max y1 y2 + (2 * r)) -- estimate, not actual bounding box
 boundingBox (Wrapper x y inner) = let (BB x1 x2 y1 y2) = boundingBox inner in BB (x - (x2 - x1) / 2) (x + (x2 - x1) / 2) (y - (y2 - y1) / 2) (y + (y2 - y1) / 2)
-boundingBox (Raw txt) = BB 0 width 0 height -- read height and width from svg text
+boundingBox (Latex txt) = BB 0 width 0 height -- read height and width from svg text
  where
   width = bool (96 / 72 * read (T.unpack $ head widthMatches)) 0 (null widthMatches)
   height = bool (96 / 72 * read (T.unpack $ head heightMatches)) 0 (null heightMatches)
-  widthResult = txt =~ rawSvgWidthRegex :: (T.Text, T.Text, T.Text, [T.Text])
-  heightResult = txt =~ rawSvgHeightRegex :: (T.Text, T.Text, T.Text, [T.Text])
+  widthResult = txt =~ widthRegex :: (T.Text, T.Text, T.Text, [T.Text])
+  heightResult = txt =~  heightRegex :: (T.Text, T.Text, T.Text, [T.Text])
   (_, _, _, widthMatches) = widthResult
   (_, _, _, heightMatches) = heightResult
-
-rawSvgWidthRegex :: T.Text
-rawSvgWidthRegex = "\\`<[^>]*width=['\"]([0-9.]+)pt"
-rawSvgHeightRegex :: T.Text
-rawSvgHeightRegex = "\\`<[^>]*height=['\"]([0-9.]+)pt"
+  widthRegex = "\\`<[^>]*width=['\"]([0-9.]+)pt" :: T.Text
+  heightRegex = "\\`<[^>]*height=['\"]([0-9.]+)pt" :: T.Text
 
 mapPair :: (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
