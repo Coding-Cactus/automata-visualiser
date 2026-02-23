@@ -94,3 +94,20 @@ a1 = do
 
   c `below` a
 
+examplePDA :: AutomatonBuilder String (StackTransition String String)
+examplePDA = do
+  a <- state "a"
+  b <- state "b"
+  c <- state "c"
+
+  initial a
+  final c
+
+  a >--["\\epsilon" ~~ ("\\epsilon", "\\$")]--> b
+
+  b >--["(" ~~ ("\\epsilon", "(")]--> b
+  b >--[")" ~~ (")", "\\epsilon")]--> b
+
+  b >--["\\epsilon" ~~ ("\\$", "\\epsilon")]--> c
+
+  a `leftOf` b

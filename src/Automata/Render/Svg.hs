@@ -43,10 +43,17 @@ svgAnimation (ALA frames ts) = do
 
 svg :: AutomatonLayout s t -> AutomatonRender
 svg (AL groups ts) = do
-  let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map toTransition l)) ts
-  let builtSvg = buildSvg (map scale $ concat groups) textTs
+  -- check if latex is available
   testImg <- imageForFormula defaultEnv displaymath "x"
   let latexAvailable = isRight testImg
+
+  -- convert TransitionLabel to Text
+  let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map (bool toTransition toLatexTransition latexAvailable) l)) ts
+
+  -- build the svg
+  let builtSvg = buildSvg (map scale $ concat groups) textTs
+
+  -- render latex labels if possible, then output to Text
   render <$> bool (pure builtSvg) (renderLatexLabels builtSvg) latexAvailable
  where
   scale s = s{x = svgPositionScale * (x s - minX), y = svgPositionScale * (y s - minY)}
@@ -198,3 +205,4 @@ renderLatexLabels s = snd <$> renderLabels M.empty s
     pure $ case renderAttempt of
       Left _ -> (cache, Text x y label)
       Right img -> (M.insert label img cache, Wrapper x y img)
+
