@@ -5,12 +5,17 @@ module Automata.Render.Svg (svg, svgAnimation) where
 import Automata.Render.Svg.Types
 import Automata.Types
 
+import Control.Monad (foldM)
 import Data.Bool
 import Data.Either (fromRight, isRight)
 import Data.List (elemIndex, partition, sort, sortBy)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
-import Image.LaTeX.Render (defaultEnv, displaymath, imageForFormula)
+
+import Data.Map (Map)
+import Data.Map qualified as M
+
+import Image.LaTeX.Render (RenderError, defaultEnv, displaymath, imageForFormula)
 
 svgStateGap :: Double
 svgStateRadius :: Double
@@ -174,12 +179,22 @@ drawLoopTransition (state, (label, orientation)) =
   stateRadius = if isFinal state then svgAcceptStateRadius else svgStateRadius
 
 renderLatexLabels :: SVG Double -> IO (SVG Double)
-renderLatexLabels (Svg elems) = Svg <$> mapM renderLatexLabels elems
-renderLatexLabels (Text x y txt) = renderLatexLabel x y txt
-renderLatexLabels s = pure s
+renderLatexLabels s = snd <$> renderLabels M.empty s
+ where
+  renderLabels cache (Svg elems) = do
+    (cache', elems') <- foldM (\(c, es) e -> fmap (\(c', e') -> (c', e' : es)) (renderLabels c e)) (cache, []) elems
+    pure (cache', Svg elems')
+  renderLabels cache (Text x y txt) = renderLabel cache x y txt
+  renderLabels cache e = pure (cache, e)
 
-renderLatexLabel :: Double -> Double -> T.Text -> IO (SVG Double)
-renderLatexLabel  x y label = do
-  img <- imageForFormula defaultEnv displaymath $ T.unpack label
-  pure $ bool (Text x y label) (Wrapper x y $ Latex $ T.pack $ unlines $ drop 2 $ lines $ fromRight "" img) (isRight img)
-
+  renderLabel cache x y label = do
+    renderAttempt <-
+      if label `M.member` cache
+        then
+          pure $ Right $ cache M.! label
+        else do
+          img <- imageForFormula defaultEnv displaymath $ T.unpack label
+          pure $ Latex . T.unlines . drop 2 . T.lines . T.pack <$> img -- remove document declaration lines
+    pure $ case renderAttempt of
+      Left _ -> (cache, Text x y label)
+      Right img -> (M.insert label img cache, Wrapper x y img)
