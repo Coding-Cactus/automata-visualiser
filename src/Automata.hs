@@ -106,7 +106,7 @@ examplePDA = do
   a >--["\\epsilon" ~~ ("\\epsilon", "\\$")]--> b
 
   b >--["(" ~~ ("\\epsilon", "(")]--> b
-  b >--[")" ~~ (")", "\\epsilon")]--> b
+  b >--[")" ~~ ("(", "\\epsilon")]--> b
 
   b >--["\\epsilon" ~~ ("\\$", "\\epsilon")]--> c
 

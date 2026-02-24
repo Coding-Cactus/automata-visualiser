@@ -86,7 +86,7 @@ data StackTransition a b where
 
 instance TransitionLabel (StackTransition a b) where
   toTransition (StackT token (stack1, stack2)) = drawLabel token <> ", " <> drawLabel stack1 <> "->" <> drawLabel stack2
-  toLatexTransition (StackT token (stack1, stack2)) = drawLabel token <> "," <> drawLabel stack1 <> "\\to" <> drawLabel stack2
+  toLatexTransition (StackT token (stack1, stack2)) = drawLabel token <> "," <> drawLabel stack1 <> " \\to " <> drawLabel stack2
 
 data PositionConstraint s
   = Ab (State s) (State s)
