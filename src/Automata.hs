@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 
-module Automata where
+module Automata (AutomatonBuilder, StackTransition, render, state, (>--), (-->), initial, final, (~~), leftOf, rightOf, above, below, tikz, svg) where
 
 import Automata.Types
 import Automata.Render

@@ -205,4 +205,3 @@ renderLatexLabels s = snd <$> renderLabels M.empty s
     pure $ case renderAttempt of
       Left _ -> (cache, Text x y label)
       Right img -> (M.insert label img cache, Wrapper x y img)
-
