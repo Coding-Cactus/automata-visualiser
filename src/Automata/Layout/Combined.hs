@@ -7,6 +7,7 @@ import qualified Automata.Layout.Energy as E
 import qualified Automata.Layout.Constrained as C
 
 import Data.Bool (bool)
+import Data.List (nub, sortBy)
 
 layout' :: Automaton s t -> AutomatonLayoutAnimation s t
 layout' a = ALA {
@@ -51,17 +52,15 @@ layout a = combinedLayout
           ]
 
     -- split groups into connected components
-    -- nodes also count as connected if they have a positioning constraint
-    components = map reverse $ getComponents [] (positionedStates initial)
-    getComponents comps [] = comps
-    getComponents comps (g:gs) = getComponents newComps gs
+    components = map (sortBy (\g1 g2 -> compare (minimum $ map psid g1) (minimum $ map psid g2))) $ getComponents (positionedStates initial) []
+    getComponents [] comps = comps
+    getComponents (x:xs) comps = getComponents xs' (c:comps) -- getComponents groupQueue foundComponents
       where
-        newComps = bool addToComps ([g] : comps) (addToComps == comps)
-        addToComps = map (\c -> bool c (g:c) (connected c g)) comps
-        connected comp group = not $ null $ [
-            (x, y) |
-              (T _ x y _) <- transitions a,
-              u <- group,
-              vs <- comp, v <- vs,
-              (x == psid u && y == psid v) || (x == psid v && y == psid u)
-          ]
+        xs' = filter (`notElem` c) xs -- don't create new component if group already in this component (remove it from queue)
+        c = gather [x] []
+        -- recursively group all groups connected to 'x' into the same component
+        gather [] comp = comp
+        gather (g:gs) comp = gather (filter (\g' -> g' `notElem` gs && g' `notElem` comp) (nub (map (getGroup . notIn g) (filter (connected g) (positionedTransitions initial)))) ++ gs) (g:comp)
+        connected g (T _ u v _) = let psids = map psid g in any (\s -> (s == u && v `notElem` psids) || (s == v && u `notElem` psids)) psids
+        notIn g (T _ u v _) = bool u v (u `elem` map psid g) -- get the state which is not in the group, from the transition
+        getGroup u = head $ filter (elem u . map psid) (positionedStates initial) -- get group from psid
