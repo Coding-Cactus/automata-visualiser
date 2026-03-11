@@ -47,6 +47,8 @@ svg (AL groups ts) = do
   testImg <- imageForFormula defaultEnv displaymath "x"
   let latexAvailable = isRight testImg
 
+  if latexAvailable then pure () else putStrLn "Warning: LaTeX installation not found. Defaulting to text labels."
+
   -- convert TransitionLabel to Text
   let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map (bool toTransition toLatexTransition latexAvailable) l)) ts
 
@@ -54,7 +56,7 @@ svg (AL groups ts) = do
   let builtSvg = buildSvg (map scale $ concat groups) textTs
 
   -- render latex labels if possible, then output to Text
-  render <$> bool (pure builtSvg) (renderLatexLabels builtSvg) latexAvailable
+  render <$> bool pure renderLatexLabels latexAvailable builtSvg
  where
   scale s = s{x = svgPositionScale * (x s - minX), y = svgPositionScale * (y s - minY)}
   minX = minimum $ map x $ concat groups
