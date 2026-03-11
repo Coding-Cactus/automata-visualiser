@@ -33,14 +33,21 @@ writeLoopPosition :: Double -> Double -> T.Text
 writeLoopPosition a1 a2 = "[in=" <> T.pack (show a1) <> ",out=" <> T.pack (show a2) <> ",loop]"
 
 angleFrom :: Int -> Transition -> Double
-angleFrom _ (Loop _ _ a1 a2) = (a1 + a2) / 2
-angleFrom u (Straight x _ a _ _) = bool (pi+a) a (u == x)
+angleFrom _ (Loop _ _ a1 a2) = normaliseAngle $ (a1 + a2) / 2
+angleFrom u (Straight x _ a _ _) = normaliseAngle $ bool (pi+a) a (u == x)
+
+normaliseAngle :: Double -> Double
+normaliseAngle theta
+  | theta < 0 = normaliseAngle $ theta + 360
+  | theta > 360 = normaliseAngle $ theta - 360
+  | otherwise = theta
 
 
 
 render :: TikzDrawing -> T.Text
 render (TD nodes transitions) = boilerplate initialPos $ T.intercalate "\n\n" [writeNodes nodes, writeTransitions transitions]
   where
+    -- calculate position of start state arrow
     angles = [0, 90, 180, 270]
     initialPos
       | null edgeAngles = "left"
