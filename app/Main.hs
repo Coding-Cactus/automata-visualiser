@@ -32,9 +32,7 @@ a1 = do
   b >--["1"]--> c
   c >--["0","1"]--> b
 
-
-
-  c `below` a
+  -- c `below` a
 
 a2 = do
   a <- state "a"
@@ -51,6 +49,77 @@ a2 = do
   b >--[""]--> e
   d >--[""]--> c
   c >--[""]--> e
+
+a3 :: AutomatonBuilder String Int
+a3 = do
+  a <- state "a"
+  b <- state "b"
+  c <- state "c"
+
+  initial a
+  final a
+
+  a >--[1]--> b
+  a >--[0]--> a
+  a >--[0]--> c
+
+  b >--[0]--> b
+  b >--[1]--> b
+  b >--[2]--> b
+  a >--[0]--> b
+
+  c >--[0]--> c
+  c >--[0]--> b
+  b >--[1]--> c
+  c >--[0,1]--> b
+
+  c `below` a
+
+  x <- state "x"
+  y <- state "y"
+  z <- state "z"
+
+  final x
+
+  x >--[1]--> y
+  x >--[0]--> x
+  x >--[0]--> z
+
+  y >--[0]--> y
+  y >--[1]--> y
+  y >--[2]--> y
+  x >--[0]--> y
+
+  z >--[0]--> z
+  z >--[0]--> y
+  y >--[1]--> z
+  z >--[0,1]--> y
+
+  z `below` x
+
+
+
+  h <- state "h"
+  i <- state "i"
+  j <- state "j"
+
+  final h
+
+  h >--[1]--> i
+  h >--[0]--> h
+  h >--[0]--> j
+
+  i >--[0]--> i
+  i >--[1]--> i
+  i >--[2]--> i
+  h >--[0]--> i
+
+  j >--[0]--> j
+  j >--[0]--> i
+  i >--[1]--> j
+  j >--[0,1]--> i
+
+  j `below` h
 
 examplePDA :: AutomatonBuilder String (StackTransition String String)
 examplePDA = do
@@ -70,9 +139,27 @@ examplePDA = do
 
   a `leftOf` b
 
+
+shorthand :: AutomatonBuilder String Int
+shorthand = do
+  a <- state "a"
+  b <- state "b"
+  c <- state "c"
+
+  initial a
+  final a
+
+  tr' a a 0
+  tr' a b 1
+  tr' b a 1
+  tr' b c 0
+  tr' c b 0
+  tr' c c 1
+
+
 main :: IO ()
 main = do
-  let a = a1
+  let a = shorthand
 
   putStrLn "Rendering SVG..."
   render "renders/testing.svg" svg a

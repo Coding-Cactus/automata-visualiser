@@ -1,6 +1,24 @@
 {-# LANGUAGE GADTs #-}
 
-module Automata (AutomatonBuilder, StackTransition, render, state, (>--), (-->), initial, final, (~~), leftOf, rightOf, above, below, tikz, svg) where
+module Automata (
+  AutomatonBuilder,
+  StackTransition,
+  render,
+  state,
+  initial,
+  final,
+  (>--),
+  (-->),
+  tr,
+  tr',
+  (~~),
+  leftOf,
+  rightOf,
+  above,
+  below,
+  tikz,
+  svg
+) where
 
 import Automata.Types
 import Automata.Render
@@ -15,8 +33,14 @@ infixl 5 >--
 s >-- condition = (s, condition)
 
 infixl 5 -->
-(-->) :: TransitionLabel t => (State s, [t]) -> State s -> S.State (Automaton s t) ()
-(S u _, c) --> (S v _) = S.modify (\a -> a { transitions = T (length $ transitions a) u v c : transitions a })
+(-->) :: TransitionLabel t => (State s, [t]) -> State s -> AutomatonBuilder s t
+(u, c) --> v = tr u v c
+
+tr :: TransitionLabel t => State s -> State s -> [t] -> AutomatonBuilder s t
+tr (S u _) (S v _) t = S.modify (\a -> a { transitions  = T (length $ transitions a) u v t : transitions a})
+
+tr' :: TransitionLabel t => State s -> State s -> t -> AutomatonBuilder s t
+tr' (S u _) (S v _) t = S.modify (\a -> a { transitions  = T (length $ transitions a) u v [t] : transitions a})
 
 infixl 6 ~~
 (~~) :: (Label t, Label w) => t -> (w, w) -> StackTransition t w
@@ -68,46 +92,3 @@ validConstraints cons = not $ checkCycle cons [] []
     checkCycle cs sts (x:xs) = checkCycle (filter (`notElem` edges) cs) (x:sts) (xs ++ map (`without` x) edges) -- add node to connected compnent + add neighbours to queue
       where edges = filter (constrained x) cs
 
-a1 :: AutomatonBuilder String String
-a1 = do
-  a <- state "q_0"
-  b <- state "q_1"
-  c <- state "q_2"
-
-  initial a
-  final a
-
-  a >--["1"]--> b
-  a >--["0"]--> a
-  a >--["0"]--> c
-  a >--["\\epsilon"]--> c
-
-  b >--["0"]--> b
-  b >--["1"]--> b
-  b >--["2"]--> b
-  a >--["0"]--> b
-
-  c >--["0"]--> c
-  c >--["0"]--> b
-  b >--["1"]--> c
-  c >--["0","1"]--> b
-
-  c `below` a
-
-examplePDA :: AutomatonBuilder String (StackTransition String String)
-examplePDA = do
-  a <- state "a"
-  b <- state "b"
-  c <- state "c"
-
-  initial a
-  final c
-
-  a >--["\\epsilon" ~~ ("\\epsilon", "\\$")]--> b
-
-  b >--["(" ~~ ("\\epsilon", "(")]--> b
-  b >--[")" ~~ ("(", "\\epsilon")]--> b
-
-  b >--["\\epsilon" ~~ ("\\$", "\\epsilon")]--> c
-
-  a `leftOf` b
