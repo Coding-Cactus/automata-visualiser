@@ -7,15 +7,15 @@ import Automata.Types
 
 import Control.Monad (foldM)
 import Data.Bool
-import Data.Either (fromRight, isRight)
+import Data.Either (isRight)
 import Data.List (elemIndex, partition, sort, sortBy)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 
-import Data.Map (Map)
 import Data.Map qualified as M
 
-import Image.LaTeX.Render (RenderError, defaultEnv, displaymath, imageForFormula)
+import Image.LaTeX.Render (defaultEnv, displaymath, imageForFormula)
+import Data.Ord (comparing, Down (Down))
 
 svgStateGap :: Double
 svgStateRadius :: Double
@@ -36,13 +36,13 @@ loopSeparationAngle = pi / 3
 loopRadius = 20
 curvedEdgeGap = pi / 12
 
-svgAnimation :: AutomatonLayoutAnimation s t -> AutomatonRender
-svgAnimation (ALA frames ts) = do
+svgAnimation :: AutomatonConfig -> AutomatonLayoutAnimation s t -> AutomatonRender
+svgAnimation config (ALA frames ts) = do
   let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map toTransition l)) ts
-  pure $ renderAnimation $ map ((`buildSvg` textTs) . concat) frames
+  pure $ renderAnimation $ map ((flip $ buildSvg config) textTs . concat) frames
 
-svg :: AutomatonLayout s t -> AutomatonRender
-svg (AL groups ts) = do
+svg :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender
+svg config (AL groups ts) = do
   -- check if latex is available
   testImg <- imageForFormula defaultEnv displaymath "x"
   let latexAvailable = isRight testImg
@@ -53,7 +53,7 @@ svg (AL groups ts) = do
   let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map (bool toTransition toLatexTransition latexAvailable) l)) ts
 
   -- build the svg
-  let builtSvg = buildSvg (map scale $ concat groups) textTs
+  let builtSvg = buildSvg config (map scale $ concat groups) textTs
 
   -- render latex labels if possible, then output to Text
   render <$> bool pure renderLatexLabels latexAvailable builtSvg
@@ -62,8 +62,12 @@ svg (AL groups ts) = do
   minX = minimum $ map x $ concat groups
   minY = minimum $ map y $ concat groups
 
-buildSvg :: [PositionedState] -> [TextTransition] -> SVG Double
-buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMap drawStraightTransition transitionPositions <> concatMap drawLoopTransition loopTransitions
+buildSvg :: AutomatonConfig -> [PositionedState] -> [TextTransition] -> SVG Double
+buildSvg config sts ts =
+  Svg $
+    concatMap (drawState config) statesAndAvailableSpaces
+      <> concatMap (drawStraightTransition config) transitionPositions
+      <> concatMap (drawLoopTransition config) loopTransitions
  where
   (transitionPositions, selfLoopInfo) = calculateTransitions
   loopTransitions = concatMap (\(s, loops, _) -> map (s,) loops) selfLoopAngles
@@ -100,8 +104,8 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
 
       aPos = head $ filter ((==) a . psid) sts
       bPos = head $ filter ((==) b . psid) sts
-      aRadius = bool svgStateRadius svgAcceptStateRadius (isFinal aPos)
-      bRadius = bool svgStateRadius svgAcceptStateRadius (isFinal bPos)
+      aRadius = bool svgStateRadius svgAcceptStateRadius (isFinal aPos && acceptanceStyle config == DoubleCircle)
+      bRadius = bool svgStateRadius svgAcceptStateRadius (isFinal bPos && acceptanceStyle config == DoubleCircle)
 
     loopInfo = map (\s -> (s, (edgeAngles s, loopList s))) sts
      where
@@ -140,15 +144,21 @@ buildSvg sts ts = Svg $ concatMap drawState statesAndAvailableSpaces <> concatMa
       pairUp [a, b] = [(a, b)]
       pairUp (a : b : cs) = (a, b) : pairUp cs
 
-drawState :: (PositionedState, [(Double, Double)]) -> [SVG Double]
-drawState (PS _ name xPos yPos isS isF, angles) =
+drawState :: AutomatonConfig -> (PositionedState, [(Double, Double)]) -> [SVG Double]
+drawState config (PS _ name xPos yPos isS isF, angles) =
   [ Circle xPos yPos svgStateRadius
   , Text xPos yPos name
   ]
     <> outerCircle
     <> startArrow
+    <> acceptArrow
  where
-  outerCircle = if isF then [Circle xPos yPos svgAcceptStateRadius] else mempty
+  -- create an outer circle if acceptance state and enabled in condfig
+  outerCircle = if isDoubleCircle then [Circle xPos yPos svgAcceptStateRadius] else mempty
+  outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isDoubleCircle
+  isDoubleCircle = isF && acceptanceStyle config == DoubleCircle
+
+  -- create a start arrow if initial state
   startArrow = if isS then [makeStart] else mempty
   makeStart =
     Line
@@ -156,17 +166,39 @@ drawState (PS _ name xPos yPos isS isF, angles) =
       (yPos + (outerCircleRadius + svgStartArrowLen) * sin startAngle)
       (xPos + outerCircleRadius * cos startAngle)
       (yPos + outerCircleRadius * sin startAngle)
-  startAngle = snd $ maximum $ map (\(a, b) -> (b - a, (a + b) / 2)) angles
-  outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isF
 
-drawStraightTransition :: PositionedTransition -> [SVG Double]
-drawStraightTransition (PT label x1 y1 x2 y2 x3 y3 x4 y4) =
+  -- create an acceptance arrow if acceptance state and enabled in config
+  isAcceptArrow = isF && acceptanceStyle config == Arrow
+  acceptArrow = if isAcceptArrow then [makeAccept] else mempty
+  makeAccept =
+    Line
+      (xPos + outerCircleRadius * cos acceptAngle)
+      (yPos + outerCircleRadius * sin acceptAngle)
+      (xPos + (outerCircleRadius + svgStartArrowLen) * cos acceptAngle)
+      (yPos + (outerCircleRadius + svgStartArrowLen) * sin acceptAngle)
+
+  -- determine angles of start and accept arrows
+  (startAngle, acceptAngle)
+    | isS && not isAcceptArrow = (singleAngle, undefined)
+    | not isS && isAcceptArrow = (undefined, singleAngle)
+    | otherwise = (angle1, angle2)
+   where
+    singleAngle = snd largestGap
+    (angle1, angle2)
+      | fst secondLargestGap / 2 > fst largestGap / 3 = (snd largestGap, snd secondLargestGap)
+      | otherwise = (snd largestGap - fst largestGap / 6, snd largestGap + fst largestGap / 6)
+    secondLargestGap = bool (0, 0) (head $ tail gaps) (length gaps >= 2)
+    largestGap = head gaps
+    gaps = sortBy (comparing Down) $ map (\(a, b) -> (b - a, (a + b) / 2)) angles
+
+drawStraightTransition :: AutomatonConfig -> PositionedTransition -> [SVG Double]
+drawStraightTransition config (PT label x1 y1 x2 y2 x3 y3 x4 y4) =
   [ Curve x1 y1 x2 y2 x3 y3
   , Text x4 y4 label
   ]
 
-drawLoopTransition :: (PositionedState, (T.Text, Double)) -> [SVG Double]
-drawLoopTransition (state, (label, orientation)) =
+drawLoopTransition :: AutomatonConfig -> (PositionedState, (T.Text, Double)) -> [SVG Double]
+drawLoopTransition config (state, (label, orientation)) =
   [ Arc x1 y1 x2 y2 loopRadius True True
   , Text labelX labelY label
   ]
@@ -185,7 +217,7 @@ drawLoopTransition (state, (label, orientation)) =
   labelX = centreX + (loopRadius + svgTransLabelGap) * cos orientation
   labelY = centreY + (loopRadius + svgTransLabelGap) * sin orientation
   -- gather state information
-  stateRadius = if isFinal state then svgAcceptStateRadius else svgStateRadius
+  stateRadius = if isFinal state && acceptanceStyle config == DoubleCircle then svgAcceptStateRadius else svgStateRadius
 
 renderLatexLabels :: SVG Double -> IO (SVG Double)
 renderLatexLabels s = snd <$> renderLabels M.empty s

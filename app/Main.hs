@@ -1,6 +1,7 @@
 module Main where
 
 import Automata
+import Automata.Types (AutomatonConfig (acceptanceStyle))
 
 a1 :: AutomatonBuilder String String
 a1 = do
@@ -156,13 +157,17 @@ shorthand = do
   tr' c b 0
   tr' c c 1
 
+config :: AutomatonConfig
+config = setConfig {
+  acceptanceStyle = Arrow
+}
 
 main :: IO ()
 main = do
   let a = shorthand
 
   putStrLn "Rendering SVG..."
-  render "renders/testing.svg" svg a
+  render config "renders/testing.svg" svg a
 
   putStrLn "Rendering TikZ..."
-  render "renders/tikz/testing.tex" tikz a
+  render config "renders/tikz/testing.tex" tikz a

@@ -5,7 +5,7 @@ module Automata.Render.Tikz where
 import Automata.Render.Tikz.Types
 import Automata.Types
 import Data.Bool
-import Data.List (elemIndex, sort, sortBy)
+import Data.List (elemIndex, sort, sortBy, maximumBy)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 
@@ -14,13 +14,28 @@ tikzLoopWidth :: Double
 tikzCoordinateScale = 1.5
 tikzLoopWidth = 30
 
-tikz :: AutomatonLayout s t -> AutomatonRender
-tikz a = pure $ render (TD nodes transitions)
+tikz :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender
+tikz config a = pure $ render (TD nodes transitions)
  where
   nodes = map posStateToTikzNode (concat $ positionedStates a)
   transitions = map transToTikzTrans (positionedTransitions a)
 
-  posStateToTikzNode (PS i label x y isInit isFinal) = N i (dollarSurround label) (tikzCoordinateScale * x) (-(tikzCoordinateScale * y)) isInit isFinal
+  posStateToTikzNode (PS i label x y isInit isFinal) = N i (dollarSurround label) (tikzCoordinateScale * x) (-(tikzCoordinateScale * y)) isInit isFinal acceptPosition
+   where
+    -- calculate acceptance arrow location if accept state and acceptance arrow is enabled
+    acceptPosition = bool "" calculateAcceptPosition (isFinal && acceptanceStyle config == Arrow)
+    angles = [0, 90, 180, 270]
+    calculateAcceptPosition
+      | null edgeAngles = "right"
+      | otherwise =  snd $ head $ filter (\(angle, _) -> angle == bestAngle) $ zip angles ["right", "above", "left", "below"]
+    bestAngle = maximumBy (\a1 a2 -> compare (spaceAround a1) (spaceAround a2)) angles
+    spaceAround angle = min (spaceLeft angle) (spaceRight angle)
+    spaceLeft  angle = minimum $ map (abs . (-) angle) $ filter (>= angle) (head edgeAngles + 360 : edgeAngles)
+    spaceRight angle = minimum $ map (abs . (-) angle) $ filter (<= angle) (last edgeAngles - 360 : edgeAngles)
+    edgeAngles = sort $ map (angleFrom i) $ filter edgeOnNode transitions
+    edgeOnNode (Straight u v _ _ _) = u == i || v == i
+    edgeOnNode (Loop u _ _ _) = u == i
+
   transToTikzTrans t@(T _ u v labels)
     | u == v = Loop u (map (dollarSurround . toLatexTransition) labels) (loopAngle - tikzLoopWidth / 2) (loopAngle + tikzLoopWidth / 2)
     | otherwise = Straight u v edgeAngle (map (dollarSurround . toLatexTransition) labels) edgeStyle

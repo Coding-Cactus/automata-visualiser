@@ -7,6 +7,22 @@ import Control.Monad.State qualified as S
 import Data.Bool
 import Data.Text (Text, pack, singleton, unpack)
 
+data AutomatonConfig = AutomatonConfig
+  { acceptanceStyle :: AcceptStyle
+  }
+
+defaultConfig :: AutomatonConfig
+defaultConfig =
+  AutomatonConfig
+    { acceptanceStyle = DoubleCircle
+    }
+
+setConfig :: AutomatonConfig
+setConfig = defaultConfig
+
+data AcceptStyle = DoubleCircle | Arrow
+  deriving (Show, Eq)
+
 data Automaton s t = Automaton
   { states :: [State s]
   , transitions :: [Transition t]
@@ -129,7 +145,6 @@ data PositionedTransition = PT
   , labelY :: Double
   }
   deriving (Show, Eq)
-
 
 data AutomatonLayout s t = AL
   { positionedStates :: [[PositionedState]]

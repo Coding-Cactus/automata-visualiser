@@ -6,6 +6,7 @@ module Automata.Render.Tikz.Types where
 import qualified Data.Text as T (Text, intercalate, pack, unlines)
 import Data.List (maximumBy, sort)
 import Data.Bool
+import Automata.Types (AutomatonConfig(acceptanceStyle))
 
 data TikzDrawing = TD [Node] [Transition]
 
@@ -15,7 +16,8 @@ data Node = N {
   nodeX :: Double,
   nodeY :: Double,
   nodeIsInitial :: Bool,
-  nodeIsFinal :: Bool
+  nodeIsFinal :: Bool,
+  acceptLocation :: T.Text
 }
 
 data Transition = Straight Int Int Double [T.Text] EdgeStyle
@@ -48,16 +50,17 @@ render :: TikzDrawing -> T.Text
 render (TD nodes transitions) = boilerplate initialPos $ T.intercalate "\n\n" [writeNodes nodes, writeTransitions transitions]
   where
     -- calculate position of start state arrow
-    angles = [0, 90, 180, 270]
+    angles = filter (\(_, w) -> w /= acceptanceArrow) $ zip [0, 90, 180, 270] ["right", "above", "left", "below"]
     initialPos
       | null edgeAngles = "left"
-      | otherwise =  snd $ head $ filter (\(a, _) -> a == bestAngle) $ zip angles ["right", "above", "left", "below"]
-    bestAngle = maximumBy (\a1 a2 -> compare (spaceAround a1) (spaceAround a2)) angles
+      | otherwise =  snd $ head $ filter (\(a, _) -> a == bestAngle) angles
+    bestAngle = maximumBy (\a1 a2 -> compare (spaceAround a1) (spaceAround a2)) $ map fst angles
     spaceAround angle = min (spaceLeft angle) (spaceRight angle)
     spaceLeft  angle = minimum $ map (abs . (-) angle) $ filter (>= angle) (head edgeAngles + 360 : edgeAngles)
     spaceRight angle = minimum $ map (abs . (-) angle) $ filter (<= angle) (last edgeAngles - 360 : edgeAngles)
     edgeAngles = sort $ map (angleFrom initialNode) $ filter edgeOnInitial transitions
     initialNode = nodeId $ head $ filter nodeIsInitial nodes
+    acceptanceArrow = acceptLocation $ head $ filter nodeIsInitial nodes
     edgeOnInitial (Straight u v _ _ _) = u == initialNode || v == initialNode
     edgeOnInitial (Loop u _ _ _) = u == initialNode
 
@@ -73,8 +76,8 @@ boilerplate initialPos content = T.unlines [
 writeNodes :: [Node] -> T.Text
 writeNodes = T.unlines . map writeNode
   where
-    writeNode (N i label x y isI isF) = T.intercalate " " [
-        "\\node[state" <> bool "" ",initial" isI <> bool "" ",accepting" isF <> "]",
+    writeNode (N i label x y isI isF accLoc) = T.intercalate " " [
+        "\\node[state" <> bool "" ",initial" isI <> bool "" ",accepting " isF <> accLoc <> "]",
         "(" <> T.pack (show i) <> ")",
         "at (" <> T.pack (show x) <> ", " <> T.pack (show y) <> ")",
         "{" <> label <> "}"

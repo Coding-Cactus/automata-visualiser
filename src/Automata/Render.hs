@@ -9,16 +9,16 @@ import qualified Control.Monad.State as S
 import qualified Data.Text.IO as T
 
 
-render :: String -> (AutomatonLayout s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
-render file fn a = do
+render :: AutomatonConfig -> String -> (AutomatonConfig -> AutomatonLayout s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
+render config file fn a = do
   let automata = S.execState a (Automaton [] [] (-1) [] [])
   let positioned = layout automata
-  rendered <- fn positioned
+  rendered <- fn config positioned
   T.writeFile file rendered
 
-render' :: String -> (AutomatonLayoutAnimation s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
-render' file fn a = do
+render' :: AutomatonConfig -> String -> (AutomatonConfig -> AutomatonLayoutAnimation s t -> AutomatonRender) -> AutomatonBuilder s t -> IO ()
+render' config file  fn a = do
   let automata = S.execState a (Automaton [] [] (-1) [] [])
   let positioned = layout' automata
-  rendered <- fn positioned
+  rendered <- fn config positioned
   T.writeFile file rendered

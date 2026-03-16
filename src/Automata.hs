@@ -3,6 +3,9 @@
 module Automata (
   AutomatonBuilder,
   StackTransition,
+  defaultConfig,
+  setConfig,
+  AcceptStyle (..),
   render,
   state,
   initial,
