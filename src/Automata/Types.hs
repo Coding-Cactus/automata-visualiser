@@ -134,7 +134,8 @@ data PositionedState = PS
   deriving (Eq, Show)
 
 data PositionedTransition = PT
-  { tLabel :: Text
+  { ptid :: Int
+  , tLabel :: Text
   , startX :: Double
   , startY :: Double
   , endX :: Double

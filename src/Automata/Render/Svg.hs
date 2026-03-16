@@ -72,11 +72,12 @@ buildSvg config sts ts =
   (transitionPositions, selfLoopInfo) = calculateTransitions
   loopTransitions = concatMap (\(s, loops, _) -> map (s,) loops) selfLoopAngles
 
-  calculateTransitions = (map position straight, loopInfo)
+  calculateTransitions = (positionedStraights, loopInfo)
    where
+    positionedStraights = map position straight
     (loops, straight) = partition (\(TT _ a b _) -> a == b) ts
 
-    position t@(TT _ a b l) = PT l x1 y1 x2 y2 x3 y3 x4 y4
+    position t@(TT i a b l) = PT i l x1 y1 x2 y2 x3 y3 x4 y4
      where
       -- endpoints after rounding edge
       x1 = x aPos + aRadius * cos (edgeAngle aPos t + direction * curveAngle)
@@ -109,13 +110,19 @@ buildSvg config sts ts =
 
     loopInfo = map (\s -> (s, (edgeAngles s, loopList s))) sts
      where
-      edgeAngles u = sort $ map (edgeAngle u) $ filter (\(TT _ a b _) -> psid u == a || psid u == b) straight
+      edgeAngles u = sort $ map (uncurry $ positionedEdgeAngle u) positionedEdges
+       where
+        positionedEdges = map (\(i, direction) -> (head $ filter (\t -> ptid t == i) positionedStraights, direction)) edges
+        edges = map (\(TT i a _ _) -> (i, psid u == a)) $ filter (\(TT _ a b _) -> psid u == a || psid u == b) straight
       loopList u = map (\(TT _ _ _ l) -> l) $ filter (\(TT _ a _ _) -> a == psid u) loops
 
-    edgeAngle u (TT _ a b _) = atan (dy / dx) + if dx < 0 || dy < 0 then pi + if dx >= 0 && dy <= 0 then pi else 0 else 0
-     where
-      v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
-      (dx, dy) = (x v - x u, y v - y u)
+    edgeAngle u (TT _ a b _) = angleBetween (x u) (y u) (x v) (y v)
+     where v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
+
+    positionedEdgeAngle (PS { x, y }) (PT { startX=x1, startY=y1, endX=x2, endY=y2 }) direction = angleBetween x y (bool x2 x1 direction) (bool y2 y1 direction)
+
+    angleBetween x1 y1 x2 y2 = atan (dy / dx) + if dx < 0 || dy < 0 then pi + if dx >= 0 && dy <= 0 then pi else 0 else 0
+     where (dx, dy) = (x2 - x1, y2 - y1)
 
   selfLoopAngles = map calculateSelfLoops selfLoopInfo
   calculateSelfLoops (s, (edgeAngles, labels)) = (s, angles (zipWith (\a b -> ((a, b), [])) (last edgeAngles - 2 * pi : edgeAngles) edgeAngles) labels, edgeAngles)
@@ -192,7 +199,7 @@ drawState config (PS _ name xPos yPos isS isF, angles) =
     gaps = sortBy (comparing Down) $ map (\(a, b) -> (b - a, (a + b) / 2)) angles
 
 drawStraightTransition :: AutomatonConfig -> PositionedTransition -> [SVG Double]
-drawStraightTransition config (PT label x1 y1 x2 y2 x3 y3 x4 y4) =
+drawStraightTransition config (PT _ label x1 y1 x2 y2 x3 y3 x4 y4) =
   [ Curve x1 y1 x2 y2 x3 y3
   , Text x4 y4 label
   ]
