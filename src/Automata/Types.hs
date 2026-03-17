@@ -104,22 +104,17 @@ instance TransitionLabel (StackTransition a b) where
   toTransition (StackT token (stack1, stack2)) = drawLabel token <> ", " <> drawLabel stack1 <> "->" <> drawLabel stack2
   toLatexTransition (StackT token (stack1, stack2)) = drawLabel token <> "," <> drawLabel stack1 <> " \\to " <> drawLabel stack2
 
-data PositionConstraint s
-  = Ab (State s) (State s)
-  | Le (State s) (State s)
+data PositionConstraint s = PosCon (State s) (State s) Double Double
   deriving (Show, Eq)
 
 constrained :: State s -> PositionConstraint s -> Bool
-constrained s (Ab a b) = s == a || s == b
-constrained s (Le a b) = s == a || s == b
+constrained s (PosCon a b _ _) = s == a || s == b
 
 without :: PositionConstraint s -> State s -> State s
-(Ab a b) `without` s = bool a b (s == a)
-(Le a b) `without` s = bool a b (s == a)
+(PosCon a b _ _) `without` s = bool a b (s == a)
 
 conToPair :: PositionConstraint s -> (State s, State s)
-conToPair (Ab a b) = (a, b)
-conToPair (Le a b) = (a, b)
+conToPair (PosCon a b _ _) = (a, b)
 
 type AutomatonRender = IO Text
 

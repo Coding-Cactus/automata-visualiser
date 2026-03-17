@@ -19,6 +19,7 @@ module Automata (
   rightOf,
   above,
   below,
+  position,
   tikz,
   svg
 ) where
@@ -65,16 +66,24 @@ final (S sid _) = S.modify $ \a -> a { finalS = sid : finalS a }
 
 
 leftOf :: State s -> State s -> AutomatonBuilder s t
-x `leftOf` y = S.modify $ addConstraint (Le x y)
+x `leftOf` y = S.modify $ addConstraint (PosCon x y 0 1)
 
 above :: State s -> State s -> AutomatonBuilder s t
-x `above` y = S.modify $ addConstraint (Ab x y)
+x `above` y = S.modify $ addConstraint (PosCon x y (pi/2) 1)
 
 rightOf :: State s -> State s -> AutomatonBuilder s t
-x `rightOf` y = S.modify $ addConstraint (Le y x)
+x `rightOf` y = S.modify $ addConstraint (PosCon y x 0 1)
 
 below :: State s -> State s -> AutomatonBuilder s t
-x `below` y = S.modify $ addConstraint (Ab y x)
+x `below` y = S.modify $ addConstraint (PosCon y x (pi/2) 1)
+
+position :: State s -> State s -> Double -> Double -> AutomatonBuilder s t
+position x y theta dist = S.modify $ addConstraint (PosCon x y (normalise $ -(theta / 180 * pi)) dist)
+ where
+  normalise t
+   | t < 0 = normalise $ t + 2*pi
+   | t > 2*pi = normalise $ t - 2*pi
+   | otherwise = t
 
 addConstraint :: PositionConstraint s -> Automaton s t -> Automaton s t
 addConstraint c a

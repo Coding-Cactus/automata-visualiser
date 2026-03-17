@@ -46,15 +46,12 @@ layout defaultLength (Automaton states trs initial finals hints) = AL {
 
         fixedNodes = map fst fixed
         -- guaranteed to be exactly 1 fixed constraining node for `n`
-        -- fixedConstraintNode = head (filter (`elem` fixedNodes) (map (`without` n) (filter (constrained n) hints)))
         fixedConstraintNode = head [ m | m <- fixed, h <- hints, constrained (fst m) h && constrained n h ]
-        -- fixedConstraintNodePos = snd $ head $ filter (\m -> fst m == fixedConstraintNode) fixed
         fixedConstraints = [(dx, dy) |
                               h <- hints,
                               constrained n h && constrained (fst fixedConstraintNode) h,
                               let (dx, dy) = offset (fst fixedConstraintNode) h]
-        offset m (Le a b) = bool (1, 0) (-1, 0) (Le a b == Le n m)
-        offset m (Ab a b) = bool (0, 1) (0, -1) (Ab a b == Ab n m)
+        offset m (PosCon _ b theta dist) = bool (dist * cos theta, dist * sin theta) (-(dist * cos theta), -(dist * sin theta)) (m == b)
 
     moveRandom _ done [] = done
     moveRandom gen done (g:gs) = moveRandom gen3 (g' : done) gs

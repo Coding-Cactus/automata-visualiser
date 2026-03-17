@@ -33,7 +33,7 @@ a1 = do
   b >--["1"]--> c
   c >--["0","1"]--> b
 
-  -- c `below` a
+  c `below` a
 
 a2 = do
   a <- state "a"
@@ -157,6 +157,28 @@ shorthand = do
   tr' c b 0
   tr' c c 1
 
+
+positioned :: AutomatonBuilder Char Int
+positioned = do
+  a <- state 'a'
+  b <- state 'b'
+  c <- state 'c'
+  d <- state 'd'
+  e <- state 'e'
+
+  a `above` b
+  a `leftOf` c
+  position c d 45 1
+  position e c 135 1.3
+
+  x <- state 'x'
+  y <- state 'y'
+  z <- state 'z'
+
+  position y x 60 2
+  position z x 120 2
+
+
 config :: AutomatonConfig
 config = setConfig {
   acceptanceStyle = Arrow
@@ -164,7 +186,7 @@ config = setConfig {
 
 main :: IO ()
 main = do
-  let a = shorthand
+  let a = positioned
 
   putStrLn "Rendering SVG..."
   render config "renders/testing.svg" svg a
