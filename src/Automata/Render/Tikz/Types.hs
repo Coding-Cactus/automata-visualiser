@@ -6,7 +6,6 @@ module Automata.Render.Tikz.Types where
 import qualified Data.Text as T (Text, intercalate, pack, unlines)
 import Data.List (maximumBy, sort)
 import Data.Bool
-import Automata.Types (AutomatonConfig(acceptanceStyle))
 
 data TikzDrawing = TD [Node] [Transition]
 
@@ -77,7 +76,7 @@ writeNodes :: [Node] -> T.Text
 writeNodes = T.unlines . map writeNode
   where
     writeNode (N i label x y isI isF accLoc) = T.intercalate " " [
-        "\\node[state" <> bool "" ",initial" isI <> bool "" ",accepting " isF <> accLoc <> "]",
+        "\\node[state" <> bool "" ",initial" isI <> bool "" (",accepting " <> accLoc) isF <> "]",
         "(" <> T.pack (show i) <> ")",
         "at (" <> T.pack (show x) <> ", " <> T.pack (show y) <> ")",
         "{" <> label <> "}"
