@@ -15,8 +15,8 @@ stepSize = 0.1
 springNatLen = 2
 springConstant = 2
 electricalConstant = 2.25
-gravitationalConstant = 1.5
-gravOffset = 1
+gravitationalConstant = 2.5
+gravOffset = 2
 
 layout' :: Automaton s t -> AutomatonLayoutAnimation s t
 layout' a = ALA {
