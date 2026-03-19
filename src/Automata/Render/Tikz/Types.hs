@@ -35,7 +35,7 @@ writeLoopPosition a1 a2 = "[in=" <> T.pack (show a1) <> ",out=" <> T.pack (show 
 
 angleFrom :: Int -> Transition -> Double
 angleFrom _ (Loop _ _ a1 a2) = normaliseAngle $ (a1 + a2) / 2
-angleFrom u (Straight x _ a _ _) = normaliseAngle $ bool (pi+a) a (u == x)
+angleFrom u (Straight x _ a _ _) = normaliseAngle $ bool (180+a) a (u == x)
 
 normaliseAngle :: Double -> Double
 normaliseAngle theta
