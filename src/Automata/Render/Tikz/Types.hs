@@ -19,8 +19,8 @@ data Node = N {
   acceptLocation :: T.Text
 }
 
-data Transition = Straight Int Int Double [T.Text] EdgeStyle
-                | Loop Int [T.Text] Double Double
+data Transition = Straight Int Int Double T.Text EdgeStyle
+                | Loop Int T.Text Double Double
                 deriving Show
 
 data EdgeStyle = NoBend | LeftBend | RightBend deriving Show
@@ -85,13 +85,13 @@ writeNodes = T.unlines . map writeNode
 writeTransitions :: [Transition] -> T.Text
 writeTransitions ts = "\\path[->]\n" <> T.intercalate "\n" (map writeTransition ts) <> ";"
   where
-    writeTransition (Straight u v _ labels edgeStyle) = write u v (T.intercalate "," labels) edgeStyle 0 0
-    writeTransition (Loop u labels theta1 theta2) = write u u (T.intercalate "," labels) NoBend theta1 theta2
+    writeTransition (Straight u v _ labels edgeStyle) = write u v labels edgeStyle 0 0
+    writeTransition (Loop u labels theta1 theta2) = write u u labels NoBend theta1 theta2
     write u v label edgeStyle theta1 theta2 = T.intercalate " " [
         "(" <> T.pack (show u) <> ")",
         "edge",
         bool (writeEdgeStyle edgeStyle) (writeLoopPosition theta1 theta2) (u == v),
-        "node",
+        "node[align=left]",
         "{" <> label <> "}",
         "(" <> T.pack (show v) <> ")"
       ]

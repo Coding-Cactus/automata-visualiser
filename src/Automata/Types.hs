@@ -5,7 +5,7 @@ module Automata.Types where
 
 import Control.Monad.State qualified as S
 import Data.Bool
-import Data.Text (Text, pack, singleton, unpack)
+import Data.Text (Text, pack, singleton, unpack, intercalate)
 
 data AutomatonConfig = AutomatonConfig
   { acceptanceStyle :: AcceptStyle
@@ -76,8 +76,27 @@ instance Eq (Transition t) where
 
 class TransitionLabel a where
   toTransition :: a -> Text
+
   toLatexTransition :: a -> Text
   toLatexTransition = toTransition
+
+  separator :: a -> Text
+  separator _ = ","
+  latexSeparator :: a -> Text
+  latexSeparator = separator
+
+joinLabels :: TransitionLabel t => [t] -> Text
+joinLabels = joinLabelsWith id
+
+joinLabelsWith :: TransitionLabel t => (Text -> Text) -> [t] -> Text
+joinLabelsWith f ls = intercalate (bool (separator $ head ls) "" (null ls)) $ map (f . toTransition) ls
+
+joinLatexLabels :: TransitionLabel t => [t] -> Text
+joinLatexLabels = joinLatexLabelsWith id
+
+joinLatexLabelsWith :: TransitionLabel t => (Text -> Text) -> [t] -> Text
+joinLatexLabelsWith f ls = intercalate (bool (latexSeparator $ head ls) "" (null ls)) $ map (f . toLatexTransition) ls
+
 
 instance TransitionLabel Char where
   toTransition = singleton
@@ -103,6 +122,8 @@ data StackTransition a b where
 instance TransitionLabel (StackTransition a b) where
   toTransition (StackT token (stack1, stack2)) = drawLabel token <> ", " <> drawLabel stack1 <> "->" <> drawLabel stack2
   toLatexTransition (StackT token (stack1, stack2)) = drawLabel token <> "," <> drawLabel stack1 <> " \\to " <> drawLabel stack2
+  separator _ = "\n"
+  latexSeparator _ = "\\\\"
 
 data PositionConstraint s = PosCon (State s) (State s) Double Double
   deriving (Show, Eq)

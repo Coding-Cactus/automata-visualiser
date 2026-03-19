@@ -14,8 +14,8 @@ import Data.Text qualified as T
 
 import Data.Map qualified as M
 
-import Image.LaTeX.Render (defaultEnv, displaymath, imageForFormula)
-import Data.Ord (comparing, Down (Down))
+import Data.Ord (Down (Down), comparing)
+import Image.LaTeX.Render (defaultEnv, displaymath, imageForFormula, FormulaOptions (environment), defaultFormulaOptions)
 
 svgStateGap :: Double
 svgStateRadius :: Double
@@ -50,7 +50,7 @@ svg config (AL groups ts) = do
   if latexAvailable then pure () else putStrLn "Warning: LaTeX installation not found. Defaulting to text labels."
 
   -- convert TransitionLabel to Text
-  let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map (bool toTransition toLatexTransition latexAvailable) l)) ts
+  let textTs = map (\(T i u v l) -> TT i u v (bool joinLabels joinLatexLabels latexAvailable l)) ts
 
   -- build the svg
   let builtSvg = buildSvg config (map scale $ concat groups) textTs
@@ -117,12 +117,14 @@ buildSvg config sts ts =
       loopList u = map (\(TT _ _ _ l) -> l) $ filter (\(TT _ a _ _) -> a == psid u) loops
 
     edgeAngle u (TT _ a b _) = angleBetween (x u) (y u) (x v) (y v)
-     where v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
+     where
+      v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
 
-    positionedEdgeAngle (PS { x, y }) (PT { startX=x1, startY=y1, endX=x2, endY=y2 }) direction = angleBetween x y (bool x2 x1 direction) (bool y2 y1 direction)
+    positionedEdgeAngle (PS{x, y}) (PT{startX = x1, startY = y1, endX = x2, endY = y2}) direction = angleBetween x y (bool x2 x1 direction) (bool y2 y1 direction)
 
     angleBetween x1 y1 x2 y2 = atan (dy / dx) + if dx < 0 || dy < 0 then pi + if dx >= 0 && dy <= 0 then pi else 0 else 0
-     where (dx, dy) = (x2 - x1, y2 - y1)
+     where
+      (dx, dy) = (x2 - x1, y2 - y1)
 
   selfLoopAngles = map calculateSelfLoops selfLoopInfo
   calculateSelfLoops (s, (edgeAngles, labels)) = (s, angles (zipWith (\a b -> ((a, b), [])) (last edgeAngles - 2 * pi : edgeAngles) edgeAngles) labels, edgeAngles)
@@ -241,7 +243,7 @@ renderLatexLabels s = snd <$> renderLabels M.empty s
         then
           pure $ Right $ cache M.! label
         else do
-          img <- imageForFormula defaultEnv displaymath $ T.unpack label
+          img <- imageForFormula defaultEnv (defaultFormulaOptions { environment = Just "align*" }) $ T.unpack label
           pure $ Latex . T.unlines . drop 2 . T.lines . T.pack <$> img -- remove document declaration lines
     pure $ case renderAttempt of
       Left _ -> (cache, Text x y label)

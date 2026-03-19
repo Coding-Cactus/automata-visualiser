@@ -37,8 +37,8 @@ tikz config a = pure $ render (TD nodes transitions)
     edgeOnNode (Loop u _ _ _) = u == i
 
   transToTikzTrans t@(T _ u v labels)
-    | u == v = Loop u (map (dollarSurround . toLatexTransition) labels) (loopAngle - tikzLoopWidth / 2) (loopAngle + tikzLoopWidth / 2)
-    | otherwise = Straight u v edgeAngle (map (dollarSurround . toLatexTransition) labels) edgeStyle
+    | u == v = Loop u (joinLatexLabelsWith dollarSurround labels) (loopAngle - tikzLoopWidth / 2) (loopAngle + tikzLoopWidth / 2)
+    | otherwise = Straight u v edgeAngle (joinLatexLabelsWith dollarSurround labels) edgeStyle
    where
     -- for edges, determine whether they should be bent
     edgeStyle
