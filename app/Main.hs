@@ -1,7 +1,6 @@
 module Main where
 
 import Automata
-import Automata.Types (AutomatonConfig (acceptanceStyle))
 
 a1 :: AutomatonBuilder String String
 a1 = do
@@ -122,6 +121,20 @@ a3 = do
 
   j `below` h
 
+a4 :: AutomatonBuilder String Int
+a4 = do
+  a <- state "q_{even}"
+  b <- state "q_{odd}"
+
+  initial a
+  final a
+
+  a >--[0]--> a
+  a >--[1]--> b
+
+  b >--[0]--> a
+  b >--[1]--> b
+
 examplePDA :: AutomatonBuilder String (StackTransition String String)
 examplePDA = do
   a <- state "a"
@@ -137,8 +150,6 @@ examplePDA = do
   b >--[")" ~~ ("(", "\\epsilon")]--> b
 
   b >--["\\epsilon" ~~ ("\\$", "\\epsilon")]--> c
-
-  a `leftOf` b
 
 
 shorthand :: AutomatonBuilder String Int
@@ -178,6 +189,35 @@ positioned = do
   position y x 60 2
   position z x 120 2
 
+turing :: AutomatonBuilder String (TuringMachineTransition Int)
+turing = do
+  a <- state "q_a"
+  b <- state "q_b"
+  c <- state "q_c"
+  d <- state "q_d"
+  e <- state "q_e"
+
+  initial a
+
+  a >--[TmT 0 1 L]--> b
+  a >--[TmT 1 1 R]--> c
+
+  b >--[TmT 1 1 L]--> b
+  b >--[TmT 0 1 L]--> c
+
+  c >--[TmT 0 1 L]--> d
+  c >--[TmT 1 0 R]--> e
+
+  d >--[TmT 1 1 R]--> d
+  d >--[TmT 0 1 R]--> a
+
+  e >--[TmT 1 0 R]--> a
+
+  position a b 45 1
+  position a d (-45) 1
+  position d c 45 1
+
+  e `below` d
 
 config :: AutomatonConfig
 config = setConfig {
@@ -186,7 +226,7 @@ config = setConfig {
 
 main :: IO ()
 main = do
-  let a = positioned
+  let a = turing
 
   putStrLn "Rendering SVG..."
   render config "renders/testing.svg" svg a

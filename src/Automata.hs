@@ -2,7 +2,9 @@
 
 module Automata (
   AutomatonBuilder,
-  StackTransition,
+  StackTransition (..),
+  TuringMachineTransition (..),
+  TuringMachineDirection (..),
   AutomatonConfig (..),
   defaultConfig,
   setConfig,

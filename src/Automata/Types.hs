@@ -125,6 +125,22 @@ instance TransitionLabel (StackTransition a b) where
   separator _ = "\n"
   latexSeparator _ = "\\\\"
 
+data TuringMachineTransition a where
+  TmT :: Label a => a -> a -> TuringMachineDirection -> TuringMachineTransition a
+
+instance TransitionLabel (TuringMachineTransition a) where
+  toTransition (TmT a b d) = intercalate "," [drawLabel a, drawLabel b, drawLabel d]
+  separator _ = "\n"
+  latexSeparator _ = "\\\\"
+
+data TuringMachineDirection = L | R | St
+  deriving (Eq, Show)
+
+instance Label TuringMachineDirection where
+  drawLabel L = "L"
+  drawLabel R = "R"
+  drawLabel St = "S"
+
 data PositionConstraint s = PosCon (State s) (State s) Double Double
   deriving (Show, Eq)
 
