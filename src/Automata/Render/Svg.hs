@@ -16,7 +16,6 @@ import Data.Map qualified as M
 
 import Data.Ord (Down (Down), comparing)
 import Image.LaTeX.Render (FormulaOptions (environment), defaultEnv, defaultFormulaOptions, displaymath, imageForFormula)
-import Debug.Trace (traceShow)
 
 stateGap :: Double
 transLabelGap :: Double
@@ -227,7 +226,7 @@ drawLoopTransition config (state, (label, orientation)) =
   centreX = x1 - lRadius * sin centreOffsetAngle
   centreY = y1 + lRadius * cos centreOffsetAngle
   labelX = centreX + (lRadius + transLabelGap) * cos orientation
-  labelY = traceShow (lRadius, sRadius, separationAngle, loopAngle, centreOffsetAngle, centreX) $ centreY + (lRadius + transLabelGap) * sin orientation
+  labelY = centreY + (lRadius + transLabelGap) * sin orientation
   -- gather state information
   sRadius = (if isFinal state && acceptanceStyle config == DoubleCircle then acceptStateRadius else stateRadius) (svgStateRadius config)
   lRadius = loopRadius (svgLoopRadius config)
