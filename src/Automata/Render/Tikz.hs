@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Automata.Render.Tikz where
+module Automata.Render.Tikz (tikz) where
 
 import Automata.Render.Tikz.Types
 import Automata.Types
@@ -10,9 +10,10 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 
 tikzCoordinateScale :: Double
-tikzLoopWidth :: Double
 tikzCoordinateScale = 1.5
-tikzLoopWidth = 30
+
+selfLoopWidth :: Double -> Double
+selfLoopWidth x = x * 30
 
 tikz :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender
 tikz config a = pure $ render (TD nodes transitions)
@@ -37,7 +38,7 @@ tikz config a = pure $ render (TD nodes transitions)
     edgeOnNode (Loop u _ _ _) = u == i
 
   transToTikzTrans t@(T _ u v labels)
-    | u == v = Loop u (joinLatexLabelsWith dollarSurround labels) (loopAngle - tikzLoopWidth / 2) (loopAngle + tikzLoopWidth / 2)
+    | u == v = Loop u (joinLatexLabelsWith dollarSurround labels) (loopAngle - loopWidth / 2) (loopAngle + loopWidth / 2)
     | otherwise = Straight u v edgeAngle (joinLatexLabelsWith dollarSurround labels) edgeStyle
    where
     -- for edges, determine whether they should be bent
@@ -52,6 +53,7 @@ tikz config a = pure $ render (TD nodes transitions)
 
     -- for loops, determine their position on the state's perimeter
     loopAngle = head $ map snd $ filter (\(l, _) -> l == t) findLoopAngles
+    loopWidth = selfLoopWidth (tikzLoopWidth config)
 
     -- calculate angles of non-loop edges
     edgeAngles = map (\x -> (x, calculateAngle (getNode u) $ getNode x)) connectedNodes
@@ -71,7 +73,7 @@ tikz config a = pure $ render (TD nodes transitions)
       angles zones (l : ls) = angles ((fst $ head sorted, l : snd (head sorted)) : tail sorted) ls
        where
         sorted = sortBy (\x y -> compare (calc y) (calc x)) zones
-        calc ((lo, hi), lps) = let n = fromIntegral $ length lps in (hi - lo + n * tikzLoopWidth) / (n + 1)
+        calc ((lo, hi), lps) = let n = fromIntegral $ length lps in (hi - lo + n * loopWidth) / (n + 1)
 
 dollarSurround :: T.Text -> T.Text
 dollarSurround x = "$" <> x <> "$"

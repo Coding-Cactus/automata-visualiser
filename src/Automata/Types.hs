@@ -5,16 +5,24 @@ module Automata.Types where
 
 import Control.Monad.State qualified as S
 import Data.Bool
-import Data.Text (Text, pack, singleton, unpack, intercalate)
+import Data.Text (Text, intercalate, pack, singleton, unpack)
 
 data AutomatonConfig = AutomatonConfig
   { acceptanceStyle :: AcceptStyle
+  , svgStateRadius :: Double
+  , svgLoopRadius :: Double
+  , svgLoopSepAngle :: Double
+  , tikzLoopWidth:: Double
   }
 
 defaultConfig :: AutomatonConfig
 defaultConfig =
   AutomatonConfig
     { acceptanceStyle = DoubleCircle
+    , svgStateRadius = 1
+    , svgLoopRadius = 1
+    , svgLoopSepAngle = 1
+    , tikzLoopWidth = 1
     }
 
 setConfig :: AutomatonConfig
@@ -85,18 +93,17 @@ class TransitionLabel a where
   latexSeparator :: a -> Text
   latexSeparator = separator
 
-joinLabels :: TransitionLabel t => [t] -> Text
+joinLabels :: (TransitionLabel t) => [t] -> Text
 joinLabels = joinLabelsWith id
 
-joinLabelsWith :: TransitionLabel t => (Text -> Text) -> [t] -> Text
+joinLabelsWith :: (TransitionLabel t) => (Text -> Text) -> [t] -> Text
 joinLabelsWith f ls = intercalate (bool (separator $ head ls) "" (null ls)) $ map (f . toTransition) ls
 
-joinLatexLabels :: TransitionLabel t => [t] -> Text
+joinLatexLabels :: (TransitionLabel t) => [t] -> Text
 joinLatexLabels = joinLatexLabelsWith id
 
-joinLatexLabelsWith :: TransitionLabel t => (Text -> Text) -> [t] -> Text
+joinLatexLabelsWith :: (TransitionLabel t) => (Text -> Text) -> [t] -> Text
 joinLatexLabelsWith f ls = intercalate (bool (latexSeparator $ head ls) "" (null ls)) $ map (f . toLatexTransition) ls
-
 
 instance TransitionLabel Char where
   toTransition = singleton
@@ -126,7 +133,7 @@ instance TransitionLabel (StackTransition a b) where
   latexSeparator _ = "\\\\"
 
 data TuringMachineTransition a where
-  TmT :: Label a => a -> a -> TuringMachineDirection -> TuringMachineTransition a
+  TmT :: (Label a) => a -> a -> TuringMachineDirection -> TuringMachineTransition a
 
 instance TransitionLabel (TuringMachineTransition a) where
   toTransition (TmT a b d) = intercalate "," [drawLabel a, drawLabel b, drawLabel d]

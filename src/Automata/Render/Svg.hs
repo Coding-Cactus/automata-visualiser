@@ -15,26 +15,28 @@ import Data.Text qualified as T
 import Data.Map qualified as M
 
 import Data.Ord (Down (Down), comparing)
-import Image.LaTeX.Render (defaultEnv, displaymath, imageForFormula, FormulaOptions (environment), defaultFormulaOptions)
+import Image.LaTeX.Render (FormulaOptions (environment), defaultEnv, defaultFormulaOptions, displaymath, imageForFormula)
+import Debug.Trace (traceShow)
 
-svgStateGap :: Double
-svgStateRadius :: Double
-svgAcceptStateRadius :: Double
-svgPositionScale :: Double
-svgTransLabelGap :: Double
-svgStartArrowLen :: Double
-loopSeparationAngle :: Double
-loopRadius :: Double
+stateGap :: Double
+transLabelGap :: Double
+startArrowLen :: Double
 curvedEdgeGap :: Double
-svgStateGap = 30
-svgStateRadius = 25
-svgAcceptStateRadius = svgStateRadius + 3
-svgPositionScale = svgStateGap + svgStateRadius * 2
-svgTransLabelGap = 10
-svgStartArrowLen = 25
-loopSeparationAngle = pi / 3
-loopRadius = 20
+stateGap = 30
+transLabelGap = 10
+startArrowLen = 25
 curvedEdgeGap = pi / 12
+
+stateRadius :: Double -> Double
+acceptStateRadius :: Double -> Double
+positionScale :: Double -> Double
+loopSeparationAngle :: Double -> Double
+loopRadius :: Double -> Double
+positionScale x = stateGap + stateRadius x * 2
+stateRadius x = x * 25
+acceptStateRadius x = stateRadius x + 3
+loopRadius x = x * 20
+loopSeparationAngle x = x * pi / 3
 
 svgAnimation :: AutomatonConfig -> AutomatonLayoutAnimation s t -> AutomatonRender
 svgAnimation config (ALA frames ts) = do
@@ -58,7 +60,7 @@ svg config (AL groups ts) = do
   -- render latex labels if possible, then output to Text
   render <$> bool pure renderLatexLabels latexAvailable builtSvg
  where
-  scale s = s{x = svgPositionScale * (x s - minX), y = svgPositionScale * (y s - minY)}
+  scale s = s{x = positionScale (svgLoopRadius config) * (x s - minX), y = positionScale (svgLoopRadius config) * (y s - minY)}
   minX = minimum $ map x $ concat groups
   minY = minimum $ map y $ concat groups
 
@@ -91,8 +93,8 @@ buildSvg config sts ts =
       midY = (y aPos + y bPos) / 2
       midGap = direction * 2.5 * (sqrt ((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2) * tan curveAngle -- the scale factor (2.5) is for extra bendiness
       -- easier to calculate label position now
-      x4 = midX - (midGap - labelDir * svgTransLabelGap) * sin (edgeAngle aPos t)
-      y4 = midY + (midGap - labelDir * svgTransLabelGap) * cos (edgeAngle aPos t)
+      x4 = midX - (midGap - labelDir * transLabelGap) * sin (edgeAngle aPos t)
+      y4 = midY + (midGap - labelDir * transLabelGap) * cos (edgeAngle aPos t)
       labelDir = bool (-1) 1 (midGap > 0)
 
       curveAngle
@@ -105,8 +107,8 @@ buildSvg config sts ts =
 
       aPos = head $ filter ((==) a . psid) sts
       bPos = head $ filter ((==) b . psid) sts
-      aRadius = bool svgStateRadius svgAcceptStateRadius (isFinal aPos && acceptanceStyle config == DoubleCircle)
-      bRadius = bool svgStateRadius svgAcceptStateRadius (isFinal bPos && acceptanceStyle config == DoubleCircle)
+      aRadius = bool stateRadius acceptStateRadius (isFinal aPos && acceptanceStyle config == DoubleCircle) (svgStateRadius config)
+      bRadius = bool stateRadius acceptStateRadius (isFinal bPos && acceptanceStyle config == DoubleCircle) (svgStateRadius config)
 
     loopInfo = map (\s -> (s, (edgeAngles s, loopList s))) sts
      where
@@ -133,18 +135,19 @@ buildSvg config sts ts =
     angles zones (l : ls) = angles ((fst $ head sorted, l : snd (head sorted)) : tail sorted) ls
      where
       sorted = sortBy (\a b -> compare (calc b) (calc a)) zones
-      calc ((lo, hi), lps) = let n = fromIntegral $ length lps in (hi - lo + n * loopSeparationAngle) / (n + 1)
+      calc ((lo, hi), lps) = let n = fromIntegral $ length lps in (hi - lo + n * loopSeparationAngle (svgLoopSepAngle config)) / (n + 1)
 
   statesAndAvailableSpaces = map calculateAvailable selfLoopAngles
    where
     calculateAvailable (s, loopAngles, edgeAngles) = (s, invert $ mergeLoops edgeAngles $ map snd loopAngles)
-    mergeLoops eAngles lAngles = mergeRanges [] $ sort (map (\a -> (a, a)) eAngles ++ map (\x -> (x - loopSeparationAngle / 2, x + loopSeparationAngle / 2)) lAngles)
+    mergeLoops eAngles lAngles = mergeRanges [] $ sort (map (\a -> (a, a)) eAngles ++ map (\x -> (x - loopSep / 2, x + loopSep / 2)) lAngles)
      where
       mergeRanges xs [] = reverse xs
       mergeRanges [] (y : ys) = mergeRanges [y] ys
       mergeRanges ((a, b) : xs) ((x, y) : ys)
         | x < b = mergeRanges ((a, y) : xs) ys
         | otherwise = mergeRanges ((x, y) : (a, b) : xs) ys
+      loopSep = loopSeparationAngle (svgLoopSepAngle config)
     invert ranges = pairUp $ (last boundaries - 2 * pi) : init boundaries -- convert list of forbidden angles into list of available angles
      where
       boundaries = concatMap (\(a, b) -> [a, b]) ranges
@@ -155,7 +158,7 @@ buildSvg config sts ts =
 
 drawState :: AutomatonConfig -> (PositionedState, [(Double, Double)]) -> [SVG Double]
 drawState config (PS _ name xPos yPos isS isF, angles) =
-  [ Circle xPos yPos svgStateRadius
+  [ Circle xPos yPos (stateRadius (svgStateRadius config))
   , Text xPos yPos name
   ]
     <> outerCircle
@@ -163,16 +166,16 @@ drawState config (PS _ name xPos yPos isS isF, angles) =
     <> acceptArrow
  where
   -- create an outer circle if acceptance state and enabled in condfig
-  outerCircle = if isDoubleCircle then [Circle xPos yPos svgAcceptStateRadius] else mempty
-  outerCircleRadius = bool svgStateRadius svgAcceptStateRadius isDoubleCircle
+  outerCircle = if isDoubleCircle then [Circle xPos yPos (acceptStateRadius (svgLoopRadius config))] else mempty
+  outerCircleRadius = bool stateRadius acceptStateRadius isDoubleCircle (svgStateRadius config)
   isDoubleCircle = isF && acceptanceStyle config == DoubleCircle
 
   -- create a start arrow if initial state
   startArrow = if isS then [makeStart] else mempty
   makeStart =
     Line
-      (xPos + (outerCircleRadius + svgStartArrowLen) * cos startAngle)
-      (yPos + (outerCircleRadius + svgStartArrowLen) * sin startAngle)
+      (xPos + (outerCircleRadius + startArrowLen) * cos startAngle)
+      (yPos + (outerCircleRadius + startArrowLen) * sin startAngle)
       (xPos + outerCircleRadius * cos startAngle)
       (yPos + outerCircleRadius * sin startAngle)
 
@@ -183,8 +186,8 @@ drawState config (PS _ name xPos yPos isS isF, angles) =
     Line
       (xPos + outerCircleRadius * cos acceptAngle)
       (yPos + outerCircleRadius * sin acceptAngle)
-      (xPos + (outerCircleRadius + svgStartArrowLen) * cos acceptAngle)
-      (yPos + (outerCircleRadius + svgStartArrowLen) * sin acceptAngle)
+      (xPos + (outerCircleRadius + startArrowLen) * cos acceptAngle)
+      (yPos + (outerCircleRadius + startArrowLen) * sin acceptAngle)
 
   -- determine angles of start and accept arrows
   (startAngle, acceptAngle)
@@ -208,25 +211,27 @@ drawStraightTransition config (PT _ label x1 y1 x2 y2 x3 y3 x4 y4) =
 
 drawLoopTransition :: AutomatonConfig -> (PositionedState, (T.Text, Double)) -> [SVG Double]
 drawLoopTransition config (state, (label, orientation)) =
-  [ Arc x1 y1 x2 y2 loopRadius True True
+  [ Arc x1 y1 x2 y2 (loopRadius (svgLoopRadius config)) True True
   , Text labelX labelY label
   ]
  where
   -- arc origin
-  x1 = x state + stateRadius * cos (orientation - loopSeparationAngle / 2)
-  y1 = y state + stateRadius * sin (orientation - loopSeparationAngle / 2)
+  x1 = x state + sRadius * cos (orientation - separationAngle / 2)
+  y1 = y state + sRadius * sin (orientation - separationAngle / 2)
   -- arc end
-  x2 = x state + stateRadius * cos (orientation - loopSeparationAngle / 2 + loopSeparationAngle)
-  y2 = y state + stateRadius * sin (orientation - loopSeparationAngle / 2 + loopSeparationAngle)
+  x2 = x state + sRadius * cos (orientation - separationAngle / 2 + separationAngle)
+  y2 = y state + sRadius * sin (orientation - separationAngle / 2 + separationAngle)
   -- label positioning: find loop centre and offset by radius+gap
-  loopAngle = acos $ (loopRadius ** 2 - stateRadius ** 2 * (1 - cos loopSeparationAngle)) / loopRadius ** 2
+  loopAngle = acos $ 1 - (sRadius ** 2 * (1 - cos separationAngle)) / lRadius ** 2
   centreOffsetAngle = orientation + loopAngle / 2 - pi / 2
-  centreX = x1 - loopRadius * sin centreOffsetAngle
-  centreY = y1 + loopRadius * cos centreOffsetAngle
-  labelX = centreX + (loopRadius + svgTransLabelGap) * cos orientation
-  labelY = centreY + (loopRadius + svgTransLabelGap) * sin orientation
+  centreX = x1 - lRadius * sin centreOffsetAngle
+  centreY = y1 + lRadius * cos centreOffsetAngle
+  labelX = centreX + (lRadius + transLabelGap) * cos orientation
+  labelY = traceShow (lRadius, sRadius, separationAngle, loopAngle, centreOffsetAngle, centreX) $ centreY + (lRadius + transLabelGap) * sin orientation
   -- gather state information
-  stateRadius = if isFinal state && acceptanceStyle config == DoubleCircle then svgAcceptStateRadius else svgStateRadius
+  sRadius = (if isFinal state && acceptanceStyle config == DoubleCircle then acceptStateRadius else stateRadius) (svgStateRadius config)
+  lRadius = loopRadius (svgLoopRadius config)
+  separationAngle = loopSeparationAngle (svgLoopSepAngle config)
 
 renderLatexLabels :: SVG Double -> IO (SVG Double)
 renderLatexLabels s = snd <$> renderLabels M.empty s
@@ -243,7 +248,7 @@ renderLatexLabels s = snd <$> renderLabels M.empty s
         then
           pure $ Right $ cache M.! label
         else do
-          img <- imageForFormula defaultEnv (defaultFormulaOptions { environment = Just "align*" }) $ T.unpack label
+          img <- imageForFormula defaultEnv (defaultFormulaOptions{environment = Just "align*"}) $ T.unpack label
           pure $ Latex . T.unlines . drop 2 . T.lines . T.pack <$> img -- remove document declaration lines
     pure $ case renderAttempt of
       Left _ -> (cache, Text x y label)
