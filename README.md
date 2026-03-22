@@ -2,12 +2,12 @@
 
 Automata Visualiser is a Haskell eDSL for creating images of various types of
 automata. There is built in support for (D/N)FAs, PDAs, and Turing Machines,
-with easy extensibililty available to add your own autamata types via the
+with easy extensibililty available to add your own automata types via the
 `TransitionLabel` type class.
 
-Automata images can be output to both an image format (SVGs) and a
+Automata can be output to both an image format (SVG) and a
 LaTeX format (TikZ). Alternate output formats can be implemented by writing a
-function `AutomatonConfig -> AutomatonLayout s t -> AutomatonRender`.
+function `f :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender`.
 
 Automata Visualiser is available to use in an online playground at https://automata.codingcactus.codes
 
@@ -26,7 +26,7 @@ source-repository-package
 allow-newer: latex-svg-image:*
 ```
 
-And then can be included as a dependency in your `.cabal` file as `automata-visualiser`.
+And can then be included as a dependency in your `.cabal` file as `automata-visualiser`.
 
 ## Syntax Documentation
 
@@ -75,14 +75,14 @@ Examples of these can be seen on https://automata.codingcactus.codes
 ### Manual Positioning
 
 Automata Visualiser attempts to automatically position the states in an
-aesthetically pleasing way. However, if wish to alter the layout manually, you
-can do so with the following functions.
+aesthetically pleasing way. However, if you wish to alter the layout manually, you
+can do so with the following functions:
 
-- `state1 \`above\` state2` positions `state1` directly above `state2`.
+- ``state1 `above` state2`` positions `state1` directly above `state2`.
 - Using the same syntax, the functions `leftOf`, `rightOf`, and `below` can also
   be used
-- For complete control over state posiioning, the `position` function can be
-  used. This function takes two states, an angle (in degrees), and a distance at
+- For complete control over state positioning, the `position` function can be
+  used. This function takes: two states, an angle (in degrees), and a distance at
   which the states should be positioned. For example `position state1 state2 45
   2` will position `state2` at and angle of 45 degress from `state1`, at a
   distance of 2 units.
@@ -114,7 +114,7 @@ configuration is available as `defaultConfig`.
 
 ```hs
 config :: AutomatonConfig
-config = setConfig = {
+config = setConfig {
   acceptanceStyle = ..., -- DoubleCircle or Arrow
   svgStateRadius  = ..., -- Alter the state radius in SVG outputs by a multiplicative constant
   svgLoopRadius   = ..., -- Alter the self loop radius in SVG output by a multiplicative constant
