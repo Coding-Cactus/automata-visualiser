@@ -14,6 +14,7 @@ import Data.Text qualified as T
 
 import Data.Map qualified as M
 
+import Data.Bifunctor (second)
 import Data.Ord (Down (Down), comparing)
 import Image.LaTeX.Render (FormulaOptions (environment), defaultEnv, defaultFormulaOptions, displaymath, imageForFormula)
 
@@ -39,8 +40,8 @@ loopSeparationAngle x = x * pi / 3
 
 svgAnimation :: AutomatonConfig -> AutomatonLayoutAnimation s t -> AutomatonRender
 svgAnimation config (ALA frames ts) = do
-  let textTs = map (\(T i u v l) -> TT i u v (T.intercalate "," $ map toTransition l)) ts
-  pure $ renderAnimation $ map ((flip $ buildSvg config) textTs . concat) frames
+  let textTs = map (\(T i u v l) -> SvgT i u v (Text 0 0 $ T.intercalate "," $ map toTransition l)) ts
+  pure $ renderAnimation $ map ((\t s -> buildSvg config s (map (Text 0 0 . sLabel) s) t) textTs . concat) frames
 
 svg :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender
 svg config (AL groups ts) = do
@@ -50,21 +51,28 @@ svg config (AL groups ts) = do
 
   if latexAvailable then pure () else putStrLn "Warning: LaTeX installation not found. Defaulting to text labels."
 
-  -- convert TransitionLabel to Text
-  let textTs = map (\(T i u v l) -> TT i u v (bool joinLabels joinLatexLabels latexAvailable l)) ts
+  -- convert TransitionLabel to SVG
+  let textLs = map (\(T _ _ _ l) -> bool joinLabels joinLatexLabels latexAvailable l) ts
+  let latexTransitions ls = zipWith (\(T i u v _) l -> SvgT i u v l) ts <$> renderLatexLabels ls
+  let textTransitions = zipWith (\(T i u v _) l -> SvgT i u v (Text 0 0 l)) ts
+  renderedTs <- bool (pure . textTransitions) latexTransitions latexAvailable textLs
+
+  -- convert state labels to svgs
+  let states = map scale $ concat groups
+  stateLabels <- bool (pure . map (Text 0 0)) renderLatexLabels latexAvailable (map sLabel $ concat groups)
 
   -- build the svg
-  let builtSvg = buildSvg config (map scale $ concat groups) textTs
+  let builtSvg = buildSvg config states stateLabels renderedTs
 
-  -- render latex labels if possible, then output to Text
-  render <$> bool pure renderLatexLabels latexAvailable builtSvg
+  -- output to Text
+  pure $ render builtSvg
  where
   scale s = s{x = positionScale (svgLoopRadius config) * (x s - minX), y = positionScale (svgLoopRadius config) * (y s - minY)}
   minX = minimum $ map x $ concat groups
   minY = minimum $ map y $ concat groups
 
-buildSvg :: AutomatonConfig -> [PositionedState] -> [TextTransition] -> SVG Double
-buildSvg config sts ts =
+buildSvg :: AutomatonConfig -> [PositionedState] -> [SVG Double] -> [SvgTransition] -> SVG Double
+buildSvg config sts stsLabels ts =
   Svg $
     concatMap (drawState config) statesAndAvailableSpaces
       <> concatMap (drawStraightTransition config) transitionPositions
@@ -76,9 +84,9 @@ buildSvg config sts ts =
   calculateTransitions = (positionedStraights, loopInfo)
    where
     positionedStraights = map position straight
-    (loops, straight) = partition (\(TT _ a b _) -> a == b) ts
+    (loops, straight) = partition (\(SvgT _ a b _) -> a == b) ts
 
-    position t@(TT i a b l) = PT i l x1 y1 x2 y2 x3 y3 x4 y4
+    position t@(SvgT i a b l) = PT i l x1 y1 x2 y2 x3 y3 x4 y4
      where
       -- endpoints after rounding edge
       x1 = x aPos + aRadius * cos (edgeAngle aPos t + direction * curveAngle)
@@ -92,9 +100,10 @@ buildSvg config sts ts =
       midY = (y aPos + y bPos) / 2
       midGap = direction * 2.5 * (sqrt ((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2) * tan curveAngle -- the scale factor (2.5) is for extra bendiness
       -- easier to calculate label position now
-      x4 = midX - (midGap - labelDir * transLabelGap) * sin (edgeAngle aPos t)
-      y4 = midY + (midGap - labelDir * transLabelGap) * cos (edgeAngle aPos t)
+      x4 = midX - (midGap / 2 + labelDir * (transLabelGap + labelWidth / 2)) * sin (edgeAngle aPos t)
+      y4 = midY + (midGap / 2 + labelDir * (transLabelGap + labelHeight / 2)) * cos (edgeAngle aPos t)
       labelDir = bool (-1) 1 (midGap > 0)
+      (labelHeight, labelWidth) = let (BB a1 a2 b1 b2) = boundingBox l in (b2 - b1, a2 - a1)
 
       curveAngle
         | even commonEdgeCount = (-1.0) ^ n * curvedEdgeGap * fromIntegral (1 + n `div` 2)
@@ -102,7 +111,7 @@ buildSvg config sts ts =
       n = fromMaybe 0 (elemIndex t commonEdges)
       direction = bool (-1) 1 (x aPos < x bPos) -- sync rotation direction between opposite direction arrows
       commonEdgeCount = length commonEdges
-      commonEdges = filter (\(TT _ u v _) -> (a == u && b == v) || (b == u && a == v)) straight
+      commonEdges = filter (\(SvgT _ u v _) -> (a == u && b == v) || (b == u && a == v)) straight
 
       aPos = head $ filter ((==) a . psid) sts
       bPos = head $ filter ((==) b . psid) sts
@@ -114,10 +123,10 @@ buildSvg config sts ts =
       edgeAngles u = sort $ map (uncurry $ positionedEdgeAngle u) positionedEdges
        where
         positionedEdges = map (\(i, direction) -> (head $ filter (\t -> ptid t == i) positionedStraights, direction)) edges
-        edges = map (\(TT i a _ _) -> (i, psid u == a)) $ filter (\(TT _ a b _) -> psid u == a || psid u == b) straight
-      loopList u = map (\(TT _ _ _ l) -> l) $ filter (\(TT _ a _ _) -> a == psid u) loops
+        edges = map (\(SvgT i a _ _) -> (i, psid u == a)) $ filter (\(SvgT _ a b _) -> psid u == a || psid u == b) straight
+      loopList u = map (\(SvgT _ _ _ l) -> l) $ filter (\(SvgT _ a _ _) -> a == psid u) loops
 
-    edgeAngle u (TT _ a b _) = angleBetween (x u) (y u) (x v) (y v)
+    edgeAngle u (SvgT _ a b _) = angleBetween (x u) (y u) (x v) (y v)
      where
       v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
 
@@ -138,7 +147,7 @@ buildSvg config sts ts =
 
   statesAndAvailableSpaces = map calculateAvailable selfLoopAngles
    where
-    calculateAvailable (s, loopAngles, edgeAngles) = (s, invert $ mergeLoops edgeAngles $ map snd loopAngles)
+    calculateAvailable (s, loopAngles, edgeAngles) = (s, getLabel s, invert $ mergeLoops edgeAngles $ map snd loopAngles)
     mergeLoops eAngles lAngles = mergeRanges [] $ sort (map (\a -> (a, a)) eAngles ++ map (\x -> (x - loopSep / 2, x + loopSep / 2)) lAngles)
      where
       mergeRanges xs [] = reverse xs
@@ -155,10 +164,12 @@ buildSvg config sts ts =
       pairUp [a, b] = [(a, b)]
       pairUp (a : b : cs) = (a, b) : pairUp cs
 
-drawState :: AutomatonConfig -> (PositionedState, [(Double, Double)]) -> [SVG Double]
-drawState config (PS _ name xPos yPos isS isF, angles) =
+  getLabel s = stsLabels !! fromMaybe 0 (elemIndex (psid s) (map psid sts))
+
+drawState :: AutomatonConfig -> (PositionedState, SVG Double, [(Double, Double)]) -> [SVG Double]
+drawState config (PS _ _ xPos yPos isS isF, label, angles) =
   [ Circle xPos yPos (stateRadius (svgStateRadius config))
-  , Text xPos yPos name
+  , setLabelPosition xPos yPos label
   ]
     <> outerCircle
     <> startArrow
@@ -203,15 +214,15 @@ drawState config (PS _ name xPos yPos isS isF, angles) =
     gaps = sortBy (comparing Down) $ map (\(a, b) -> (b - a, (a + b) / 2)) angles
 
 drawStraightTransition :: AutomatonConfig -> PositionedTransition -> [SVG Double]
-drawStraightTransition config (PT _ label x1 y1 x2 y2 x3 y3 x4 y4) =
+drawStraightTransition _ (PT _ label x1 y1 x2 y2 x3 y3 x4 y4) =
   [ Curve x1 y1 x2 y2 x3 y3
-  , Text x4 y4 label
+  , setLabelPosition x4 y4 label
   ]
 
-drawLoopTransition :: AutomatonConfig -> (PositionedState, (T.Text, Double)) -> [SVG Double]
+drawLoopTransition :: AutomatonConfig -> (PositionedState, (SVG Double, Double)) -> [SVG Double]
 drawLoopTransition config (state, (label, orientation)) =
   [ Arc x1 y1 x2 y2 (loopRadius (svgLoopRadius config)) True True
-  , Text labelX labelY label
+  , setLabelPosition labelX labelY label
   ]
  where
   -- arc origin
@@ -225,23 +236,18 @@ drawLoopTransition config (state, (label, orientation)) =
   centreOffsetAngle = orientation + loopAngle / 2 - pi / 2
   centreX = x1 - lRadius * sin centreOffsetAngle
   centreY = y1 + lRadius * cos centreOffsetAngle
-  labelX = centreX + (lRadius + transLabelGap) * cos orientation
-  labelY = centreY + (lRadius + transLabelGap) * sin orientation
+  labelX = centreX + (lRadius + transLabelGap + labelWidth / 2) * cos orientation
+  labelY = centreY + (lRadius + transLabelGap + labelHeight / 2) * sin orientation
+  (labelHeight, labelWidth) = let (BB a1 a2 b1 b2) = boundingBox label in (b2 - b1, a2 - a1)
   -- gather state information
   sRadius = (if isFinal state && acceptanceStyle config == DoubleCircle then acceptStateRadius else stateRadius) (svgStateRadius config)
   lRadius = loopRadius (svgLoopRadius config)
   separationAngle = loopSeparationAngle (svgLoopSepAngle config)
 
-renderLatexLabels :: SVG Double -> IO (SVG Double)
-renderLatexLabels s = snd <$> renderLabels M.empty s
+renderLatexLabels :: [T.Text] -> IO [SVG Double]
+renderLatexLabels labels = reverse . snd <$> foldM (\(c, ts) t -> second (: ts) <$> renderLabel c t) (M.empty, []) labels
  where
-  renderLabels cache (Svg elems) = do
-    (cache', elems') <- foldM (\(c, es) e -> fmap (\(c', e') -> (c', e' : es)) (renderLabels c e)) (cache, []) elems
-    pure (cache', Svg elems')
-  renderLabels cache (Text x y txt) = renderLabel cache x y txt
-  renderLabels cache e = pure (cache, e)
-
-  renderLabel cache x y label = do
+  renderLabel cache label = do
     renderAttempt <-
       if label `M.member` cache
         then
@@ -250,5 +256,5 @@ renderLatexLabels s = snd <$> renderLabels M.empty s
           img <- imageForFormula defaultEnv (defaultFormulaOptions{environment = Just "align*"}) $ T.unpack label
           pure $ Latex . T.unlines . drop 2 . T.lines . T.pack <$> img -- remove document declaration lines
     pure $ case renderAttempt of
-      Left _ -> (cache, Text x y label)
-      Right img -> (M.insert label img cache, Wrapper x y img)
+      Left _ -> (cache, Text 0 0 label)
+      Right img -> (M.insert label img cache, Wrapper 0 0 img)

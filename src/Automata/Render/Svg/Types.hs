@@ -17,10 +17,24 @@ import Text.Regex.TDFA ((=~))
 
 import Data.Bool
 
-data TextTransition = TT Int Int Int T.Text
+data PositionedTransition = PT
+  { ptid :: Int
+  , tLabel :: SVG Double
+  , startX :: Double
+  , startY :: Double
+  , endX :: Double
+  , endY :: Double
+  , midX :: Double
+  , midY :: Double
+  , labelX :: Double
+  , labelY :: Double
+  }
+  deriving (Show, Eq)
 
-instance Eq TextTransition where
-  (TT a _ _ _) == (TT b _ _ _) = a == b
+data SvgTransition = SvgT Int Int Int (SVG Double)
+
+instance Eq SvgTransition where
+  (SvgT a _ _ _) == (SvgT b _ _ _) = a == b
 
 data BoundingBox a where
   BB ::
@@ -42,9 +56,26 @@ data SVG a where
   Wrapper :: (Show a, Fractional a, Ord a) => a -> a -> SVG a -> SVG a -- Wrapper x y innerContent
   Latex :: T.Text -> SVG Double -- Already rendered latex svg text
 
-mapSvg :: (Show a, Fractional a, Ord a, Show b, Fractional b, Ord b) => (SVG a -> SVG b) -> SVG a -> SVG b
-mapSvg f (Svg elems) = Svg $ map (mapSvg f) elems
-mapSvg f s = f s
+instance Show (SVG a) where
+  show (Svg elems) = "Svg " <> show (map show elems)
+  show (Text x y content) = "Text " <> unwords (map show [x, y] <> [show $ T.unpack content])
+  show (Circle x y radius) = "Circle " <> unwords (map show [x, y, radius])
+  show (Line x1 y1 x2 y2) = "Line " <> unwords (map show [x1, y1, x2, y2])
+  show (Curve x1 y1 x2 y2 x3 y3) = "Curve " <> unwords (map show [x1, y1, x2, y2, x3, y3])
+  show (Arc x1 y1 x2 y2 radius arc sweep) = "Arc " <> unwords (map show [x1, y1, x2, y2, radius] <> map show [arc, sweep])
+  show (Wrapper x y content) = "Circle " <> unwords (map show [x, y] <> ["(" <> show content <> ")"])
+  show (Latex content) = "Latex " <> show (T.unpack content)
+
+instance Eq (SVG a) where
+  (Svg elems) == (Svg elems') = elems == elems'
+  (Text x y content) == (Text x' y' content') = (x, y, content) == (x', y', content')
+  (Circle x y radius) == (Circle x' y' radius') = (x, y, radius) == (x', y', radius')
+  (Line x1 y1 x2 y2) == (Line x1' y1' x2' y2') = (x1, y1, x2, y2) == (x1', y1', x2', y2')
+  (Curve x1 y1 x2 y2 x3 y3) == (Curve x1' y1' x2' y2' x3' y3') = (x1, y1, x2, y2, x3, y3) == (x1', y1', x2', y2', x3', y3')
+  (Arc x1 y1 x2 y2 radius arc sweep) == (Arc x1' y1' x2' y2' radius' arc' sweep') = (x1, y1, x2, y2, radius, arc, sweep) == (x1', y1', x2', y2', radius', arc', sweep')
+  (Wrapper x y content) == (Wrapper x' y' content') = (x, y, content) == (x', y', content')
+  (Latex content) == (Latex content') = content == content'
+  _ == _ = False
 
 render :: SVG a -> T.Text
 render = toStrict . renderSvg . toSvg
@@ -143,11 +174,16 @@ boundingBox (Latex txt) = BB 0 width 0 height -- read height and width from svg 
   width = bool (96 / 72 * read (T.unpack $ head widthMatches)) 0 (null widthMatches)
   height = bool (96 / 72 * read (T.unpack $ head heightMatches)) 0 (null heightMatches)
   widthResult = txt =~ widthRegex :: (T.Text, T.Text, T.Text, [T.Text])
-  heightResult = txt =~  heightRegex :: (T.Text, T.Text, T.Text, [T.Text])
+  heightResult = txt =~ heightRegex :: (T.Text, T.Text, T.Text, [T.Text])
   (_, _, _, widthMatches) = widthResult
   (_, _, _, heightMatches) = heightResult
   widthRegex = "\\`<[^>]*width=['\"]([0-9.]+)pt" :: T.Text
   heightRegex = "\\`<[^>]*height=['\"]([0-9.]+)pt" :: T.Text
+
+setLabelPosition :: (Show a, Fractional a, Ord a) => a -> a -> SVG a -> SVG a
+setLabelPosition x y (Text _ _ content) = Text x y content
+setLabelPosition x y (Wrapper _ _ content) = Wrapper x y content
+setLabelPosition _ _ e = e
 
 mapPair :: (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)

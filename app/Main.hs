@@ -1,6 +1,7 @@
 module Main where
 
 import Automata
+import Control.Monad (forM_)
 
 a1 :: AutomatonBuilder String String
 a1 = do
@@ -219,6 +220,21 @@ turing = do
 
   e `below` d
 
+
+generalDivisibility :: Int -> AutomatonBuilder String Int
+generalDivisibility n = do
+  states <- mapM (\i -> state $ "q_{" <> show i <> "}") [0 .. n-1]
+  forM_ [0 .. n-1 ] $ \i -> do
+    let s = states !! i
+    let s0 = states !! ((i*2) `mod` n)
+    let s1 = states !! ((i*2+1) `mod` n)
+
+    s >--[0]--> s0
+    s >--[1]--> s1
+
+  initial (head states)
+  final (head states)
+
 config :: AutomatonConfig
 config = setConfig {
   acceptanceStyle = Arrow
@@ -226,7 +242,7 @@ config = setConfig {
 
 main :: IO ()
 main = do
-  let a = turing
+  let a = generalDivisibility 4
 
   putStrLn "Rendering SVG..."
   render config "renders/testing.svg" svg a

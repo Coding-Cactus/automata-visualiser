@@ -12,7 +12,7 @@ data AutomatonConfig = AutomatonConfig
   , svgStateRadius :: Double
   , svgLoopRadius :: Double
   , svgLoopSepAngle :: Double
-  , tikzLoopWidth:: Double
+  , tikzLoopWidth :: Double
   }
 
 defaultConfig :: AutomatonConfig
@@ -171,20 +171,6 @@ data PositionedState = PS
   , isFinal :: Bool
   }
   deriving (Eq, Show)
-
-data PositionedTransition = PT
-  { ptid :: Int
-  , tLabel :: Text
-  , startX :: Double
-  , startY :: Double
-  , endX :: Double
-  , endY :: Double
-  , midX :: Double
-  , midY :: Double
-  , labelX :: Double
-  , labelY :: Double
-  }
-  deriving (Show, Eq)
 
 data AutomatonLayout s t = AL
   { positionedStates :: [[PositionedState]]
