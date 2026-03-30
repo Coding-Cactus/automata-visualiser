@@ -39,11 +39,11 @@ simulate a@(AL groups trns) = AL (zipWith (\g (dx, dy) -> map (\u -> u { x = dx 
 movement :: AutomatonLayout s t -> [(Double, Double)]
 movement (AL groups trns) = map (\u -> (groupMotionX u, groupMotionY u)) groups
   where
-    groupMotionX = sum . map motionX
-    groupMotionY = sum . map motionY
+    groupMotionX g = sum (map motionX g) / fromIntegral (length g)
+    groupMotionY g = sum (map motionY g) / fromIntegral (length g)
 
-    motionX u = gravityX u + sum (map (\v -> electicX u v + transitionTensionX u v) $ concatMap (filter (u /=)) groups)
-    motionY u = gravityY u + sum (map (\v -> electicY u v + transitionTensionY u v) $ concatMap (filter (u /=)) groups)
+    motionX u = gravityX u + sum (map (\v -> electicX u v + transitionTensionX u v) $ concat $ filter (u `notElem`) groups)
+    motionY u = gravityY u + sum (map (\v -> electicY u v + transitionTensionY u v) $ concat $ filter (u `notElem`) groups)
 
     transitionTensionX u v = if hasTransition u v then tensionX u v else 0
     transitionTensionY u v = if hasTransition u v then tensionY u v else 0

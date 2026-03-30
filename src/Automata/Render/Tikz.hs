@@ -62,7 +62,7 @@ tikz config a = pure $ render (TD nodes transitions)
     calculateAngle (PS{x = x1, y = y1}) (PS{x = x2, y = y2}) =
       let (dx, dy) = (x2 - x1, y1 - y2) -- (y1-y2) rather than the other way around because up=+ive in tikz
        in radToDeg (atan (dy / dx)) + if dx < 0 || dy < 0 then 180 + if dx >= 0 && dy <= 0 then 180 else 0 else 0
-    radToDeg theta = theta / pi * 180
+    radToDeg theta = bool (theta / pi * 180) 0 (isNaN theta)
     getNode i = head $ concatMap (filter (\x -> psid x == i)) (positionedStates a)
 
     -- find best empty spaces to put loops
