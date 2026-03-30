@@ -109,7 +109,7 @@ buildSvg config sts stsLabels ts =
         | even commonEdgeCount = (-1.0) ^ n * curvedEdgeGap * fromIntegral (1 + n `div` 2)
         | otherwise = (-1.0) ^ n * curvedEdgeGap * fromIntegral ((n + 1) `div` 2)
       n = fromMaybe 0 (elemIndex t commonEdges)
-      direction = bool (-1) 1 (x aPos < x bPos) -- sync rotation direction between opposite direction arrows
+      direction = bool (-1) 1 (x aPos < x bPos || (x aPos == x bPos && psid aPos < psid bPos)) -- sync rotation direction between opposite direction arrows
       commonEdgeCount = length commonEdges
       commonEdges = filter (\(SvgT _ u v _) -> (a == u && b == v) || (b == u && a == v)) straight
 
