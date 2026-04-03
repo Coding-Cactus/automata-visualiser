@@ -12,6 +12,7 @@ data AutomatonConfig = AutomatonConfig
   , svgStateRadius :: Double
   , svgLoopRadius :: Double
   , svgLoopSepAngle :: Double
+  , svgLabelAbove :: Bool
   , tikzLoopWidth :: Double
   }
 
@@ -22,6 +23,7 @@ defaultConfig =
     , svgStateRadius = 1
     , svgLoopRadius = 1
     , svgLoopSepAngle = 1
+    , svgLabelAbove = True
     , tikzLoopWidth = 1
     }
 
