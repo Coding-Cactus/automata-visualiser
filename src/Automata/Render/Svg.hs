@@ -102,7 +102,7 @@ buildSvg config sts stsLabels ts =
       -- easier to calculate label position now
       x4 = midX - (midGap / 2 + labelDir * (transLabelGap + labelWidth / 2)) * sin (edgeAngle aPos t)
       y4 = midY + (midGap / 2 + labelDir * (transLabelGap + labelHeight / 2)) * cos (edgeAngle aPos t)
-      labelDir = bool (-1) 1 (midGap > 0)
+      labelDir = bool (-1) 1 (midGap > 0 || commonEdgeCount == 1)
       (labelHeight, labelWidth) = let (BB a1 a2 b1 b2) = boundingBox l in (b2 - b1, a2 - a1)
 
       curveAngle
