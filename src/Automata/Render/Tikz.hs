@@ -76,4 +76,6 @@ tikz config a = pure $ render (TD nodes transitions)
         calc ((lo, hi), lps) = let n = fromIntegral $ length lps in (hi - lo + n * loopWidth) / (n + 1)
 
 dollarSurround :: T.Text -> T.Text
-dollarSurround x = "$" <> x <> "$"
+dollarSurround x
+  | T.null $ T.strip x = ""
+  | otherwise = "$" <> x <> "$"
