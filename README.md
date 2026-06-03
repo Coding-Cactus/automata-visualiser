@@ -87,6 +87,25 @@ can do so with the following functions:
   2` will position `state2` at and angle of 45 degress from `state1`, at a
   distance of 2 units.
 
+### Manual Transition Curving
+
+The curvature of transitions is done automatically when there are multiple edges
+between the same states, however you may wish to set the curvature of standalone
+edges. The can be done with the `bendLeft` and `bendRight` functions:
+
+```hs
+automaton :: AutomatonBuilder String Int
+automaton = do
+  a <- state "a"
+  b <- state "b"
+
+  initial a
+  final b
+
+  bendLeft $ a >--[0]--> b
+  bendRight' 1.5 $ a >--[1]--> b
+```
+
 ### Transition Shorthand
 
 The `tr` and `tr'` functions can be used as shorter altnertives to the arrow

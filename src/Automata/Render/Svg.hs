@@ -40,7 +40,7 @@ loopSeparationAngle x = x * pi / 3
 
 svgAnimation :: AutomatonConfig -> AutomatonLayoutAnimation s t -> AutomatonRender
 svgAnimation config (ALA frames ts) = do
-  let textTs = map (\(T i u v l) -> SvgT i u v (Text 0 0 $ T.intercalate "," $ map toTransition l)) ts
+  let textTs = map (\(T i u v l b) -> SvgT i u v (Text 0 0 $ T.intercalate "," $ map toTransition l) b) ts
   pure $ renderAnimation $ map ((\t s -> buildSvg config s (map (Text 0 0 . sLabel) s) t) textTs . concat) frames
 
 svg :: AutomatonConfig -> AutomatonLayout s t -> AutomatonRender
@@ -52,9 +52,9 @@ svg config (AL groups ts) = do
   if latexAvailable then pure () else putStrLn "Warning: LaTeX installation not found. Defaulting to text labels."
 
   -- convert TransitionLabel to SVG
-  let textLs = map (\(T _ _ _ l) -> bool joinLabels joinLatexLabels latexAvailable l) ts
-  let latexTransitions ls = zipWith (\(T i u v _) l -> SvgT i u v l) ts <$> renderLatexLabels ls
-  let textTransitions = zipWith (\(T i u v _) l -> SvgT i u v (Text 0 0 l)) ts
+  let textLs = map (\(T _ _ _ l _) -> bool joinLabels joinLatexLabels latexAvailable l) ts
+  let latexTransitions ls = zipWith (\(T i u v _ b) l -> SvgT i u v l b) ts <$> renderLatexLabels ls
+  let textTransitions = zipWith (\(T i u v _ b) l -> SvgT i u v (Text 0 0 l) b) ts
   renderedTs <- bool (pure . textTransitions) latexTransitions latexAvailable textLs
 
   -- convert state labels to svgs
@@ -84,9 +84,9 @@ buildSvg config sts stsLabels ts =
   calculateTransitions = (positionedStraights, loopInfo)
    where
     positionedStraights = map position straight
-    (loops, straight) = partition (\(SvgT _ a b _) -> a == b) ts
+    (loops, straight) = partition (\(SvgT _ a b _ _) -> a == b) ts
 
-    position t@(SvgT i a b l) = PT i l x1 y1 x2 y2 x3 y3 x4 y4
+    position t@(SvgT i a b l bend) = PT i l x1 y1 x2 y2 x3 y3 x4 y4
      where
       -- endpoints after rounding edge
       x1 = x aPos + aRadius * cos (edgeAngle aPos t + direction * curveAngle)
@@ -105,13 +105,14 @@ buildSvg config sts stsLabels ts =
       labelDir = bool (-1) 1 (midGap > 0 || (commonEdgeCount == 1 && not (svgLabelAbove config)))
       (labelHeight, labelWidth) = let (BB a1 a2 b1 b2) = boundingBox l in (b2 - b1, a2 - a1)
 
-      curveAngle
+      curveAngle = maybe calculateCurve (* (curvedEdgeGap * direction)) bend
+      calculateCurve
         | even commonEdgeCount = (-1.0) ^ n * curvedEdgeGap * fromIntegral (1 + n `div` 2)
         | otherwise = (-1.0) ^ n * curvedEdgeGap * fromIntegral ((n + 1) `div` 2)
       n = fromMaybe 0 (elemIndex t commonEdges)
       direction = bool (-1) 1 (x aPos < x bPos || (x aPos == x bPos && psid aPos < psid bPos)) -- sync rotation direction between opposite direction arrows
       commonEdgeCount = length commonEdges
-      commonEdges = filter (\(SvgT _ u v _) -> (a == u && b == v) || (b == u && a == v)) straight
+      commonEdges = filter (\(SvgT _ u v _ _) -> (a == u && b == v) || (b == u && a == v)) straight
 
       aPos = head $ filter ((==) a . psid) sts
       bPos = head $ filter ((==) b . psid) sts
@@ -123,10 +124,10 @@ buildSvg config sts stsLabels ts =
       edgeAngles u = sort $ map (uncurry $ positionedEdgeAngle u) positionedEdges
        where
         positionedEdges = map (\(i, direction) -> (head $ filter (\t -> ptid t == i) positionedStraights, direction)) edges
-        edges = map (\(SvgT i a _ _) -> (i, psid u == a)) $ filter (\(SvgT _ a b _) -> psid u == a || psid u == b) straight
-      loopList u = map (\(SvgT _ _ _ l) -> l) $ filter (\(SvgT _ a _ _) -> a == psid u) loops
+        edges = map (\(SvgT i a _ _ _) -> (i, psid u == a)) $ filter (\(SvgT _ a b _ _) -> psid u == a || psid u == b) straight
+      loopList u = map (\(SvgT _ _ _ l _) -> l) $ filter (\(SvgT _ a _ _ _) -> a == psid u) loops
 
-    edgeAngle u (SvgT _ a b _) = angleBetween (x u) (y u) (x v) (y v)
+    edgeAngle u (SvgT _ a b _ _) = angleBetween (x u) (y u) (x v) (y v)
      where
       v = head $ filter (\(PS{psid = i}) -> psid u /= i && (i == a || i == b)) sts
 

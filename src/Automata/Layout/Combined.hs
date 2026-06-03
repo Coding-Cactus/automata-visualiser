@@ -27,7 +27,7 @@ layout a = combinedLayout
 
     -- layout each connected component separetely
     layouts = map ((F.layoutPositioned . E.layoutPositioned) . (\c -> AL c (gatherTransitions c) )) components
-    gatherTransitions comp = filter (\(T _ x _ _) -> x `elem` map psid (concat comp)) (transitions a)
+    gatherTransitions comp = filter (\(T _ x _ _ _) -> x `elem` map psid (concat comp)) (transitions a)
 
     -- recombine components after laying out separately
     combinedLayout = AL (concat $ zipWith translateComp [1..] comps) (transitions a)
@@ -61,6 +61,6 @@ layout a = combinedLayout
         -- recursively group all groups connected to 'x' into the same component
         gather [] comp = comp
         gather (g:gs) comp = gather (filter (\g' -> g' `notElem` gs && g' `notElem` comp) (nub (map (getGroup . notIn g) (filter (connected g) (positionedTransitions initial)))) ++ gs) (g:comp)
-        connected g (T _ u v _) = let psids = map psid g in any (\s -> (s == u && v `notElem` psids) || (s == v && u `notElem` psids)) psids
-        notIn g (T _ u v _) = bool u v (u `elem` map psid g) -- get the state which is not in the group, from the transition
+        connected g (T _ u v _ _) = let psids = map psid g in any (\s -> (s == u && v `notElem` psids) || (s == v && u `notElem` psids)) psids
+        notIn g (T _ u v _ _) = bool u v (u `elem` map psid g) -- get the state which is not in the group, from the transition
         getGroup u = head $ filter (elem u . map psid) (positionedStates initial) -- get group from psid

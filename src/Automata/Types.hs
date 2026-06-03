@@ -75,14 +75,14 @@ instance Label Double where
   drawLabel = pack . show
 
 data Transition t where
-  -- T id uId vId label
-  T :: (TransitionLabel t) => Int -> Int -> Int -> [t] -> Transition t
+  -- T id uId vId label bend
+  T :: (TransitionLabel t) => Int -> Int -> Int -> [t] -> Maybe Double -> Transition t
 
 instance Show (Transition t) where
-  show (T i s1 s2 t) = show (i, s1, s2, map toTransition t)
+  show (T i s1 s2 t bend) = show (i, s1, s2, map toTransition t, bend)
 
 instance Eq (Transition t) where
-  (T i1 _ _ _) == (T i2 _ _ _) = i1 == i2
+  (T i1 _ _ _ _) == (T i2 _ _ _ _) = i1 == i2
 
 class TransitionLabel a where
   toTransition :: a -> Text

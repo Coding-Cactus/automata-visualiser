@@ -37,18 +37,17 @@ tikz config a = pure $ render (TD nodes transitions)
     edgeOnNode (Straight u v _ _ _) = u == i || v == i
     edgeOnNode (Loop u _ _ _) = u == i
 
-  transToTikzTrans t@(T _ u v labels)
+  transToTikzTrans t@(T _ u v labels bend)
     | u == v = Loop u (joinLatexLabelsWith dollarSurround labels) (loopAngle - loopWidth / 2) (loopAngle + loopWidth / 2)
     | otherwise = Straight u v edgeAngle (joinLatexLabelsWith dollarSurround labels) edgeStyle
    where
     -- for edges, determine whether they should be bent
-    edgeStyle
-      | length sharedEdges == 1 = NoBend
-      | edgeN >= 2 = NoBend -- not supported yet
-      | (u < v) /= even edgeN = LeftBend
-      | otherwise = RightBend
+    edgeStyle = fromMaybe edgeCurve bend
+    edgeCurve
+      | even $ length sharedEdges = (-1) ^ edgeN * fromIntegral (1 + edgeN `div` 2)
+      | otherwise = (-1) ^ edgeN * fromIntegral ((1 + edgeN) `div` 2)
     edgeN = fromMaybe 0 $ elemIndex t sharedEdges
-    sharedEdges = filter (\(T _ x y _) -> (x == u && y == v) || (x == v && y == u)) (positionedTransitions a)
+    sharedEdges = filter (\(T _ x y _ _) -> ((x == u && y == v) || (x == v && y == u)) && x /= y) (positionedTransitions a)
     edgeAngle = snd $ head $ filter (\(x, _) -> x == v) edgeAngles
 
     -- for loops, determine their position on the state's perimeter
@@ -58,7 +57,7 @@ tikz config a = pure $ render (TD nodes transitions)
     -- calculate angles of non-loop edges
     edgeAngles = map (\x -> (x, calculateAngle (getNode u) $ getNode x)) connectedNodes
     sortedAngles = sort $ map snd edgeAngles
-    connectedNodes = map (\(T _ x y _) -> bool x y (u == x)) $ filter (\(T _ x y _) -> (x == u || y == u) && x /= y) (positionedTransitions a)
+    connectedNodes = map (\(T _ x y _ _) -> bool x y (u == x)) $ filter (\(T _ x y _ _) -> (x == u || y == u) && x /= y) (positionedTransitions a)
     calculateAngle (PS{x = x1, y = y1}) (PS{x = x2, y = y2}) =
       let (dx, dy) = (x2 - x1, y1 - y2) -- (y1-y2) rather than the other way around because up=+ive in tikz
        in radToDeg (atan (dy / dx)) + if dx < 0 || dy < 0 then 180 + if dx >= 0 && dy <= 0 then 180 else 0 else 0
@@ -66,7 +65,7 @@ tikz config a = pure $ render (TD nodes transitions)
     getNode i = head $ concatMap (filter (\x -> psid x == i)) (positionedStates a)
 
     -- find best empty spaces to put loops
-    commonLoops = filter (\(T _ x y _) -> x == u && y == u) (positionedTransitions a)
+    commonLoops = filter (\(T _ x y _ _) -> x == u && y == u) (positionedTransitions a)
     findLoopAngles = angles (zipWith (\x y -> ((x, y), [])) (last sortedAngles - 360 : sortedAngles) sortedAngles) commonLoops
      where
       angles zones [] = concatMap (\((x, y), ls) -> zipWith (\l i -> (l, x + ((y - x) / fromIntegral (1 + length ls)) * i)) ls [1 ..]) zones

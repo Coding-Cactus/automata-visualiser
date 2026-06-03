@@ -1,7 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Automata
-import Control.Monad (forM_)
+import Data.Text (Text)
 
 a1 :: AutomatonBuilder String String
 a1 = do
@@ -35,6 +37,7 @@ a1 = do
 
   c `below` a
 
+a2 :: AutomatonBuilder Text Text
 a2 = do
   a <- state "a"
   b <- state "b"
@@ -207,12 +210,12 @@ turing = do
   b >--[TmT 0 1 L]--> c
 
   c >--[TmT 0 1 L]--> d
-  c >--[TmT 1 0 R]--> e
+  bendLeft $ c >--[TmT 1 0 R]--> e
 
   d >--[TmT 1 1 R]--> d
   d >--[TmT 0 1 R]--> a
 
-  e >--[TmT 1 0 R]--> a
+  bendLeft $ e >--[TmT 1 0 R]--> a
 
   position a b 45 1
   position a d (-45) 1
@@ -221,20 +224,6 @@ turing = do
   e `below` d
 
 
-generalDivisibility :: Int -> AutomatonBuilder String Int
-generalDivisibility n = do
-  states <- mapM (\i -> state $ "q_{" <> show i <> "}") [0 .. n-1]
-  forM_ [0 .. n-1 ] $ \i -> do
-    let s = states !! i
-    let s0 = states !! ((i*2) `mod` n)
-    let s1 = states !! ((i*2+1) `mod` n)
-
-    s >--[0]--> s0
-    s >--[1]--> s1
-
-  initial (head states)
-  final (head states)
-
 config :: AutomatonConfig
 config = setConfig {
   acceptanceStyle = Arrow
@@ -242,10 +231,11 @@ config = setConfig {
 
 main :: IO ()
 main = do
-  let a = generalDivisibility 4
+  let a = turing
+  let c = defaultConfig
 
   putStrLn "Rendering SVG..."
-  render config "renders/testing.svg" svg a
+  render c "renders/testing.svg" svg a
 
   putStrLn "Rendering TikZ..."
-  render config "renders/tikz/testing.tex" tikz a
+  render c "renders/tikz/testing.tex" tikz a

@@ -31,10 +31,10 @@ data PositionedTransition = PT
   }
   deriving (Show, Eq)
 
-data SvgTransition = SvgT Int Int Int (SVG Double)
+data SvgTransition = SvgT Int Int Int (SVG Double) (Maybe Double)
 
 instance Eq SvgTransition where
-  (SvgT a _ _ _) == (SvgT b _ _ _) = a == b
+  (SvgT a _ _ _ _) == (SvgT b _ _ _ _) = a == b
 
 data BoundingBox a where
   BB ::

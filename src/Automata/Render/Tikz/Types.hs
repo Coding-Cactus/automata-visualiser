@@ -19,17 +19,16 @@ data Node = N {
   acceptLocation :: T.Text
 }
 
-data Transition = Straight Int Int Double T.Text EdgeStyle
+data Transition = Straight Int Int Double T.Text Double
                 | Loop Int T.Text Double Double
                 deriving Show
 
-data EdgeStyle = NoBend | LeftBend | RightBend deriving Show
+singleBendAngle :: Double
+singleBendAngle = 22
 
-writeEdgeStyle :: EdgeStyle -> T.Text
-writeEdgeStyle NoBend = ""
-writeEdgeStyle LeftBend = "[bend left=22]"
-writeEdgeStyle RightBend = "[bend right=22]"
-
+writeEdgeStyle :: Double -> T.Text
+writeEdgeStyle 0 = ""
+writeEdgeStyle bend = "[bend right=" <> T.pack (show $ bend * singleBendAngle) <> "]"
 writeLoopPosition :: Double -> Double -> T.Text
 writeLoopPosition a1 a2 = "[in=" <> T.pack (show a1) <> ",out=" <> T.pack (show a2) <> ",loop]"
 
@@ -86,7 +85,7 @@ writeTransitions :: [Transition] -> T.Text
 writeTransitions ts = "\\path[->]\n" <> T.intercalate "\n" (map writeTransition ts) <> ";"
   where
     writeTransition (Straight u v _ labels edgeStyle) = write u v labels edgeStyle 0 0
-    writeTransition (Loop u labels theta1 theta2) = write u u labels NoBend theta1 theta2
+    writeTransition (Loop u labels theta1 theta2) = write u u labels 0 theta1 theta2
     write u v label edgeStyle theta1 theta2 = T.intercalate " " [
         "(" <> T.pack (show u) <> ")",
         "edge",
